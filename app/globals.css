@@ -3,7 +3,12 @@
   --bg: #1b5e7e;      /* 계획서 스케치의 남색 배경 */
   --card: #e8eaec;    /* 밝은 회색 카드 */
   --ink: #16232a;     /* 글자색 */
+  --muted: #5b6b73;   /* 흐린 글자 */
   --line: #c6ced3;    /* 구분선 */
+  --item: #d8dcdf;    /* 목록 안 항목 배경 */
+  --accent: #2b7a99;  /* 버튼 */
+  --red: #c0392b;     /* 미답변 */
+  --green: #2e7d4f;   /* 답변 완료 */
 }
 
 * {
@@ -37,7 +42,7 @@ body {
 .site-header nav {
   display: flex;
   gap: 1rem;
-  margin-left: auto; /* 남는 공간을 왼쪽에 몰아서 메뉴를 오른쪽 끝으로 민다 */
+  margin-left: auto; /* 남는 공간을 왼쪽에 몰아 메뉴를 오른쪽 끝으로 민다 */
 }
 
 .site-header nav a {
@@ -61,4 +66,164 @@ body {
 h1 {
   margin-top: 0;
   font-size: 1.5rem;
+}
+
+/* ---- 목록 화면 머리글 ---- */
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.btn {
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.btn-plain {
+  display: inline-block;
+  margin-top: 1.5rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.btn-plain:hover {
+  text-decoration: underline;
+}
+
+/* ---- 검색 · 태그 필터 ---- */
+.search {
+  width: 100%;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--item);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.tag-btn {
+  border: 1px solid var(--line);
+  background: var(--item);
+  color: var(--ink);
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tag-btn:hover {
+  border-color: var(--accent);
+}
+
+.tag-btn.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ---- 질문 카드 ---- */
+.q-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.q-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--item);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.q-card:hover {
+  border-color: var(--accent);
+}
+
+.q-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.q-card-title {
+  font-weight: 600;
+}
+
+.q-card-tags {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.q-card-meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ---- 상태 배지 ---- */
+.badge {
+  flex: none;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #fff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.badge-unanswered { background: var(--red); }
+.badge-answered   { background: var(--accent); }
+.badge-resolved   { background: var(--green); }
+
+/* ---- 질문 상세 ---- */
+.q-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.q-detail h1 {
+  margin: 0.3rem 0;
+}
+
+.q-detail-body {
+  white-space: pre-wrap; /* 줄바꿈을 그대로 살린다 */
+}
+
+.q-detail hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1.5rem 0 1rem;
+}
+
+.answers-title {
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 0.92rem;
 }
