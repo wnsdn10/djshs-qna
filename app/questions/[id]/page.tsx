@@ -19,9 +19,15 @@ export default async function QuestionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   // ★ Next.js 16 함정
-  //   params는 Promise다. await 없이 params.id를 읽으면 undefined가 나온다.
-  //   (Next.js 15까지는 그냥 params.id로 썼기 때문에 옛날 예제와 다르다)
-  const { id } = params;
+  //   params는 Promise다. await 없이 params.id를 읽으면 이런 에러가 난다:
+  //     "params is a Promise and must be unwrapped with await or React.use()"
+  //   Next.js 15까지는 그냥 params.id로 썼기 때문에 옛날 예제나 AI가 알려주는
+  //   코드와 다르다. 다행히 조용히 undefined가 되지 않고 파일·줄 번호까지
+  //   찍힌 에러로 멈춰주므로, 만나면 바로 고칠 수 있다.
+  //
+  //   (서버 컴포넌트는 async라서 await를 쓴다. 클라이언트 컴포넌트는 async가
+  //    안 되므로 그쪽에서는 React.use()를 쓴다.)
+  const { id } = await params;
 
   const question = await getQuestion(id);
 

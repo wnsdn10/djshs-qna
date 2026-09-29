@@ -379,7 +379,7 @@ style: 기본 색상과 카드 레이아웃 지정
 6. **경계 실험**: `QuestionFilter.tsx`(클라이언트) 안에서 `getQuestions()`를 부르면 어떻게 되는지 확인 → 왜 서버 코드는 서버 컴포넌트에서만 불러야 하는지 체감
 
 **완료 판정**
-- [ ] 목록에 카드 5개가 스케치와 비슷한 모양으로 뜬다
+- [ ] 목록에 카드가 스케치와 비슷한 모양으로 뜬다
 - [ ] 카드를 클릭하면 상세 화면으로 이동하고 그 질문 내용이 나온다
 - [ ] 태그 버튼을 누르면 목록이 걸러진다
 - [ ] 어떤 파일이 서버이고 어떤 파일이 클라이언트인지 종이에 그릴 수 있다
@@ -387,7 +387,7 @@ style: 기본 색상과 카드 레이아웃 지정
 **막히는 지점**
 | 증상 | 원인 |
 |---|---|
-| `params.id`가 undefined | `await params` 안 함 (Next 16) |
+| `params is a Promise and must be unwrapped with await` | `await params` 안 함 (Next 16). 메시지에 파일명과 줄 번호가 같이 찍히므로 그 줄을 바로 열어보면 된다 |
 | "You're importing a component that needs useState..." | `'use client'` 누락 |
 | 클라이언트 컴포넌트에서 서버 함수 호출 시 에러 | 데이터는 서버에서 가져와 props로 내려줘야 한다 |
 
@@ -687,7 +687,7 @@ docs: README와 결과 보고서용 개발 기록 정리
 
 | 에러 메시지 / 증상 | 십중팔구 원인 |
 |---|---|
-| `params` / `searchParams`가 undefined | `await params` 안 함 (Next.js 16 변경점) |
+| `params is a Promise and must be unwrapped with await` | `await params` 안 함 (Next.js 16 변경점) |
 | `You're importing a component that needs useState` | `'use client'` 누락 |
 | `Functions cannot be passed directly to Client Components` | 서버 함수를 클라이언트 컴포넌트에 props로 넘김 |
 | 데이터가 **에러 없이** 빈 배열 | RLS 정책 |
