@@ -5,12 +5,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getQuestion } from "@/lib/data/questions";
-import type { QuestionStatus } from "@/lib/data/questions";
+import type { QuestionStatus, QuestionType } from "@/lib/data/questions";
 
 const STATUS_LABEL: Record<QuestionStatus, string> = {
   unanswered: "미답변",
   answered: "답변 있음",
   resolved: "해결됨",
+};
+
+const TYPE_LABEL: Record<QuestionType, string> = {
+  concept: "개념",
+  problem: "문제",
+  research: "연구·보고서",
 };
 
 export default async function QuestionDetailPage({
@@ -43,6 +49,10 @@ export default async function QuestionDetailPage({
         <span className="q-card-tags">
           {question.tags.map((t) => `#${t}`).join(" ")}
         </span>
+        <span className="q-card-meta">{TYPE_LABEL[question.qType]}</span>
+        {question.visibility === "seniors" && (
+          <span className="lock">선배 전용</span>
+        )}
       </div>
 
       <h1>{question.title}</h1>

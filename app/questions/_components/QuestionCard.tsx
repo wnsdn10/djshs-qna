@@ -23,7 +23,13 @@ export default function QuestionCard({ question }: { question: Question }) {
       </span>
 
       <div className="q-card-main">
-        <div className="q-card-title">{question.title}</div>
+        <div className="q-card-title">
+          {question.title}
+          {/* 선배에게만 공개인 질문 표시. 실제로 걸러내는 건 8차시 RLS에서 */}
+          {question.visibility === "seniors" && (
+            <span className="lock">선배 전용</span>
+          )}
+        </div>
         <div className="q-card-tags">
           {question.tags.map((t) => `#${t}`).join(" ")}
         </div>
