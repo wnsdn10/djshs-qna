@@ -7,9 +7,16 @@ import Link from "next/link";
 import { getQuestions } from "@/lib/data/questions";
 import QuestionList from "./_components/QuestionList";
 
+// ★ 5차시에 추가
+//   이 화면은 접속할 때마다 DB를 다시 읽어야 한다.
+//   이 줄이 없으면 Next.js가 "내용이 변할 일 없는 페이지"로 판단해
+//   빌드할 때 HTML을 만들어 굳혀버린다. 그러면 새 질문을 등록해도
+//   배포본에서는 목록이 그대로다. (4차시 끝에 겪은 바로 그 현상)
+export const dynamic = "force-dynamic";
+
 export default async function QuestionsPage() {
   // 데이터를 가져오는 방법은 여기서 몰라도 된다. 함수만 부른다.
-  // 5차시에 이 함수 안이 Supabase 쿼리로 바뀌어도 이 줄은 그대로다.
+  // 5차시에 이 함수 안이 Supabase 조회로 바뀌었지만 이 줄은 그대로다.
   const questions = await getQuestions();
 
   return (

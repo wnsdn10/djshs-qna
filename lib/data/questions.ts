@@ -1,14 +1,15 @@
 // lib/data/questions.ts
 //
-// ★ 이 파일이 로드맵 "결정 C"의 핵심이다.
+// ★ 5차시 — 로드맵 "결정 C"의 보상을 회수하는 순간
 //
-// 지금은 아래 MOCK 배열을 그대로 돌려주지만,
-// 5차시에는 함수 "안"만 Supabase 쿼리로 바꾼다.
-// 화면(page.tsx)은 이 함수만 부르므로 그때 화면 코드는 한 줄도 안 고쳐도 된다.
+// 이 파일의 함수 "안"만 Supabase 조회로 바뀌었다.
+// 함수의 이름, 매개변수, 돌려주는 타입은 3차시와 똑같다.
+// 그래서 app/questions/page.tsx 같은 화면 코드는 한 줄도 고치지 않았다.
 //
-// 그래서 지금 당장은 필요 없어 보여도 async를 붙여 둔다.
-// DB 조회는 시간이 걸리는 작업이라 반드시 async가 되는데,
-// 미리 async로 만들어 두면 5차시에 함수의 "모양"이 바뀌지 않는다.
+// 바뀐 것: MOCK 배열이 사라지고 DB 조회가 들어왔다.
+// 안 바뀐 것: getQuestions() / getQuestion(id) / createQuestion(input) 의 모양.
+
+import { getSupabase } from "@/lib/supabase/server";
 
 /** 질문 상태 — 목록의 배지 색이 여기 연결된다 */
 export type QuestionStatus = "unanswered" | "answered" | "resolved";
@@ -33,7 +34,7 @@ export type Question = {
   createdAt: string;
 };
 
-/** 질문을 새로 만들 때 받는 값. 나머지 필드는 서버가 정한다. */
+/** 질문을 새로 만들 때 받는 값. 나머지 필드는 서버와 DB가 정한다. */
 export type NewQuestionInput = {
   title: string;
   body: string;
@@ -42,114 +43,109 @@ export type NewQuestionInput = {
   visibility: Visibility;
 };
 
-const MOCK: Question[] = [
-  {
-    id: "1",
-    title: "실험에서 오차가 너무 커요",
-    body: "5회 반복측정했는데 오차가 너무 커요. 오차 분석을 한다고 해도 그대로 써도 될까요?",
-    tags: ["물리", "R&E"],
-    qType: "research",
-    visibility: "all",
-    status: "unanswered",
-    authorCohort: 42,
-    answerCount: 0,
-    createdAt: "2026-09-02",
-  },
-  {
-    id: "2",
-    title: "이거 어떻게 푸나요",
-    body: "치환적분으로 풀려고 했는데 중간에 막혔습니다. 어디서부터 잘못됐는지 모르겠어요.",
-    tags: ["수학", "미적분"],
-    qType: "problem",
-    visibility: "all",
-    status: "unanswered",
-    authorCohort: 43,
-    answerCount: 0,
-    createdAt: "2026-09-01",
-  },
-  {
-    id: "3",
-    title: "오비탈 개념이 이해가 안돼요",
-    body: "s, p 오비탈 모양이 왜 그렇게 생겼는지 이해가 안 갑니다. 그냥 외워야 하나요?",
-    tags: ["화학", "오비탈"],
-    qType: "concept",
-    visibility: "all",
-    status: "answered",
-    authorCohort: 43,
-    answerCount: 3,
-    createdAt: "2026-08-30",
-  },
-  {
-    id: "4",
-    title: "보고서 참고문헌 형식 질문",
-    body: "R&E 보고서 쓰는데 참고문헌을 어떤 형식으로 적어야 하는지 정해진 게 있나요?",
-    tags: ["기타", "R&E"],
-    qType: "research",
-    visibility: "seniors",
-    status: "resolved",
-    authorCohort: 43,
-    answerCount: 2,
-    createdAt: "2026-08-28",
-  },
-  {
-    id: "5",
-    title: "PCR 실험 결과가 안 나와요",
-    body: "밴드가 아예 안 보입니다. 프라이머 문제일까요 아니면 온도 조건일까요?",
-    tags: ["생명", "R&E"],
-    qType: "research",
-    visibility: "all",
-    status: "unanswered",
-    authorCohort: 43,
-    answerCount: 0,
-    createdAt: "2026-08-27",
-  },
-  {
-    id: "6",
-    title: "재귀함수 시간복잡도 계산법",
-    body: "점화식은 세웠는데 거기서 O표기로 넘어가는 과정이 헷갈립니다.",
-    tags: ["정보", "알고리즘"],
-    qType: "concept",
-    visibility: "all",
-    status: "answered",
-    authorCohort: 42,
-    answerCount: 1,
-    createdAt: "2026-08-25",
-  },
-];
+// ---------------------------------------------------------------
+// DB의 한 줄(row)을 화면이 쓰는 Question 모양으로 바꾼다.
+//
+// DB는 author_cohort 처럼 밑줄로 쓰고(SQL의 관습),
+// TypeScript는 authorCohort 처럼 대문자로 쓴다(JS의 관습).
+// 이 차이를 여기 한 곳에서만 흡수하면 화면 코드가 DB 사정을 몰라도 된다.
+// ---------------------------------------------------------------
+type QuestionRow = {
+  id: string;
+  title: string;
+  body: string;
+  tags: string[] | null;
+  q_type: QuestionType;
+  visibility: Visibility;
+  status: QuestionStatus;
+  author_cohort: number | null;
+  answer_count: number;
+  created_at: string;
+};
+
+function toQuestion(row: QuestionRow): Question {
+  return {
+    id: row.id,
+    title: row.title,
+    body: row.body,
+    tags: row.tags ?? [],
+    qType: row.q_type,
+    visibility: row.visibility,
+    status: row.status,
+    authorCohort: row.author_cohort ?? 0,
+    answerCount: row.answer_count,
+    // DB는 "2026-09-02T00:00:00+00:00" 처럼 시각까지 주므로 날짜만 자른다
+    createdAt: row.created_at.slice(0, 10),
+  };
+}
 
 /** 질문 목록을 최신순으로 가져온다 */
 export async function getQuestions(): Promise<Question[]> {
-  return [...MOCK].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const supabase = getSupabase();
+
+  const { data, error } = await supabase
+    .from("questions")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  // ★ Supabase는 실패해도 예외를 던지지 않고 error 객체를 돌려준다.
+  //   이걸 확인하지 않으면 "에러도 없이 빈 배열"만 보게 된다. (RLS 문제가 대표적)
+  if (error) {
+    throw new Error(`질문 목록을 불러오지 못했습니다: ${error.message}`);
+  }
+
+  return (data as QuestionRow[]).map(toQuestion);
 }
+
+// id가 uuid 모양인지 검사하는 정규식
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** 질문 하나를 id로 찾는다. 없으면 null */
 export async function getQuestion(id: string): Promise<Question | null> {
-  return MOCK.find((q) => q.id === id) ?? null;
+  // uuid 모양이 아니면 DB에 물어볼 것도 없이 "없는 질문"이다.
+  // (uuid 컬럼에 "999" 같은 값을 비교하면 Postgres가 형식 에러를 낸다)
+  if (!UUID_RE.test(id)) return null;
+
+  const supabase = getSupabase();
+
+  const { data, error } = await supabase
+    .from("questions")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle(); // 0개면 null, 1개면 그 행. single()은 0개일 때 에러가 난다.
+
+  if (error) {
+    throw new Error(`질문을 불러오지 못했습니다: ${error.message}`);
+  }
+
+  return data ? toQuestion(data as QuestionRow) : null;
 }
 
-/**
- * 질문을 새로 등록한다.
- *
- * ★ 지금은 서버 프로그램의 메모리(위 MOCK 배열)에 넣을 뿐이다.
- *   어느 파일에도 저장하지 않으므로 서버를 껐다 켜면 사라진다.
- *   5차시에 이 함수 안이 Supabase insert로 바뀌면 진짜로 남는다.
- */
-export async function createQuestion(input: NewQuestionInput): Promise<Question> {
-  const question: Question = {
-    id: String(Date.now()),
-    title: input.title,
-    body: input.body,
-    tags: input.tags,
-    qType: input.qType,
-    visibility: input.visibility,
-    // 아래 값들은 사용자가 정하는 게 아니라 서버가 정한다
-    status: "unanswered",
-    answerCount: 0,
-    // 작성자는 6차시에 로그인을 붙이면 실제 사용자로 바뀐다. 지금은 고정값.
-    authorCohort: 42,
-    createdAt: new Date().toISOString().slice(0, 10),
-  };
+/** 질문을 새로 등록한다 */
+export async function createQuestion(
+  input: NewQuestionInput
+): Promise<Question> {
+  const supabase = getSupabase();
 
-  MOCK.unshift(question);
-  return question;
+  const { data, error } = await supabase
+    .from("questions")
+    .insert({
+      title: input.title,
+      body: input.body,
+      tags: input.tags,
+      q_type: input.qType,
+      visibility: input.visibility,
+      // 작성자는 6차시에 로그인한 사용자로 바뀐다. 지금은 고정값.
+      author_cohort: 42,
+      // id · status · answer_count · created_at 은 DB가 기본값으로 채운다
+    })
+    .select()
+    .single(); // 방금 넣은 행을 돌려받는다
+
+  if (error) {
+    throw new Error(`질문을 등록하지 못했습니다: ${error.message}`);
+  }
+
+  return toQuestion(data as QuestionRow);
 }

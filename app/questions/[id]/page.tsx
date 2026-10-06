@@ -1,4 +1,4 @@
-// app/questions/[id]/page.tsx  →  주소: /questions/1, /questions/2 ...
+// app/questions/[id]/page.tsx  →  주소: /questions/<uuid>
 //
 // 서버 컴포넌트. 주소에서 id를 꺼내 그 질문 하나를 가져온다.
 
@@ -18,6 +18,9 @@ const TYPE_LABEL: Record<QuestionType, string> = {
   problem: "문제",
   research: "연구·보고서",
 };
+
+// ★ 5차시에 추가 — 목록 화면과 같은 이유로, 접속할 때마다 DB를 다시 읽는다
+export const dynamic = "force-dynamic";
 
 export default async function QuestionDetailPage({
   params,
