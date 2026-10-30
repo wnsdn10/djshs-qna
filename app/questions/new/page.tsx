@@ -1,11 +1,12 @@
 // app/questions/new/page.tsx  →  주소: /questions/new
 //
 // 서버 컴포넌트다. 'use client'가 없다는 점에 주목할 것.
-// 폼에 useState를 쓰지 않고, <form action={서버함수}> 하나로 처리하기 때문에
+// 폼에 useState를 쓰지 않고 <form action={서버함수}> 하나로 처리하기 때문에
 // 클라이언트 컴포넌트로 만들 필요가 없다.
 
 import Link from "next/link";
 import { createQuestionAction } from "./actions";
+import { requireUser } from "@/lib/auth";
 
 const ERROR_MESSAGE: Record<string, string> = {
   title: "제목을 입력하세요.",
@@ -17,8 +18,12 @@ export default async function NewQuestionPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  // ★ searchParams도 params와 똑같이 Promise다. await가 필요하다. (Next.js 16)
-  //   주소 뒤의 ?error=title 부분을 읽는 것.
+  // ★ 6차시에 추가 — 로그인 안 했으면 로그인 화면으로 보낸다.
+  //   저장하는 쪽(actions.ts)에서도 한 번 더 막고 있다.
+  //   여기서 막는 건 "빈 폼을 다 채우고 나서야 튕기는" 일을 막기 위한 친절이고,
+  //   진짜 방어는 저장하는 쪽에 있다.
+  await requireUser();
+
   const { error } = await searchParams;
 
   return (
@@ -31,7 +36,9 @@ export default async function NewQuestionPage({
       </div>
 
       {error && (
-        <p className="form-error">{ERROR_MESSAGE[error] ?? "입력을 확인하세요."}</p>
+        <p className="form-error">
+          {ERROR_MESSAGE[error] ?? "입력을 확인하세요."}
+        </p>
       )}
 
       {/* action에 서버 함수를 그대로 연결한다.

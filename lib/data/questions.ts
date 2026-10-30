@@ -1,15 +1,10 @@
 // lib/data/questions.ts
 //
-// ★ 5차시 — 로드맵 "결정 C"의 보상을 회수하는 순간
-//
-// 이 파일의 함수 "안"만 Supabase 조회로 바뀌었다.
-// 함수의 이름, 매개변수, 돌려주는 타입은 3차시와 똑같다.
-// 그래서 app/questions/page.tsx 같은 화면 코드는 한 줄도 고치지 않았다.
-//
-// 바뀐 것: MOCK 배열이 사라지고 DB 조회가 들어왔다.
-// 안 바뀐 것: getQuestions() / getQuestion(id) / createQuestion(input) 의 모양.
+// 화면이 쓰는 질문 데이터 함수들.
+// 3차시: 배열 → 5차시: Supabase 조회 → 6차시: 작성자 연결까지.
+// 그동안 함수의 이름과 돌려주는 모양은 거의 그대로였고, 그래서 화면 코드는 조금만 바뀌었다.
 
-import { getSupabase } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 /** 질문 상태 — 목록의 배지 색이 여기 연결된다 */
 export type QuestionStatus = "unanswered" | "answered" | "resolved";
@@ -41,14 +36,15 @@ export type NewQuestionInput = {
   tags: string[];
   qType: QuestionType;
   visibility: Visibility;
+  /** 누가 썼는지. 화면엔 안 보이지만 DB에는 항상 남긴다 (계획서 5번 대비책) */
+  authorId: string;
+  authorCohort: number;
 };
 
 // ---------------------------------------------------------------
 // DB의 한 줄(row)을 화면이 쓰는 Question 모양으로 바꾼다.
-//
-// DB는 author_cohort 처럼 밑줄로 쓰고(SQL의 관습),
-// TypeScript는 authorCohort 처럼 대문자로 쓴다(JS의 관습).
-// 이 차이를 여기 한 곳에서만 흡수하면 화면 코드가 DB 사정을 몰라도 된다.
+// DB는 author_cohort 처럼 밑줄로, TypeScript는 authorCohort 처럼 대문자로 쓴다.
+// 그 차이를 여기 한 곳에서만 흡수하면 화면 코드가 DB 사정을 몰라도 된다.
 // ---------------------------------------------------------------
 type QuestionRow = {
   id: string;
@@ -74,14 +70,13 @@ function toQuestion(row: QuestionRow): Question {
     status: row.status,
     authorCohort: row.author_cohort ?? 0,
     answerCount: row.answer_count,
-    // DB는 "2026-09-02T00:00:00+00:00" 처럼 시각까지 주므로 날짜만 자른다
     createdAt: row.created_at.slice(0, 10),
   };
 }
 
 /** 질문 목록을 최신순으로 가져온다 */
 export async function getQuestions(): Promise<Question[]> {
-  const supabase = getSupabase();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("questions")
@@ -107,7 +102,7 @@ export async function getQuestion(id: string): Promise<Question | null> {
   // (uuid 컬럼에 "999" 같은 값을 비교하면 Postgres가 형식 에러를 낸다)
   if (!UUID_RE.test(id)) return null;
 
-  const supabase = getSupabase();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("questions")
@@ -126,7 +121,7 @@ export async function getQuestion(id: string): Promise<Question | null> {
 export async function createQuestion(
   input: NewQuestionInput
 ): Promise<Question> {
-  const supabase = getSupabase();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("questions")
@@ -136,8 +131,8 @@ export async function createQuestion(
       tags: input.tags,
       q_type: input.qType,
       visibility: input.visibility,
-      // 작성자는 6차시에 로그인한 사용자로 바뀐다. 지금은 고정값.
-      author_cohort: 42,
+      author_id: input.authorId,
+      author_cohort: input.authorCohort,
       // id · status · answer_count · created_at 은 DB가 기본값으로 채운다
     })
     .select()
