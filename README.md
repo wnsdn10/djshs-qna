@@ -1,36 +1,141 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 상호 협력 학습 지원 시스템
 
-## Getting Started
+대전동신과학고 학생들이 **학교 구글 계정으로 로그인해 서로 묻고 답하는 웹 서비스**입니다.
+질문을 올리면 같은 학교 선후배가 답을 달고, 그 기여가 점수로 쌓입니다.
 
-First, run the development server:
+2026학년도 정보과학 프로젝트 · 2505 김준우
+
+**배포 주소**: https://djshs-qna.vercel.app
+
+---
+
+## 무엇을 해결하려 했나
+
+공부나 연구 중에 모르는 것이 생겨도 물어볼 곳을 찾기 어렵습니다. 특히 R&E나 보고서를 쓰다 생긴 질문은 가까운 친구나 담당 선생님께 직접 여쭙는 것 외에 방법이 없습니다.
+
+인터넷이나 AI를 써도 **우리 학교에서 어떤 과목을 어떻게 배우는지 모르기 때문에** 원하는 답을 얻기 어렵고, 기존 질문 앱들은 정규 교육과정 문제만 다루기 때문에 실험 데이터 처리나 논문 수식 이해 같은 질문은 올릴 곳조차 없습니다.
+
+그래서 **학교 안의 사람에게, 익명으로, 기여가 보상되는 방식으로** 묻는 공간을 만들었습니다.
+
+---
+
+## 주요 기능
+
+| 기능 | 설명 |
+|---|---|
+| **학교 계정 로그인** | 구글 OAuth. `@djshs.djsch.kr` 계정만 가입·로그인 가능 |
+| **질문 작성** | 제목·내용·태그·질문 유형(개념/문제/연구·보고서)·공개 범위 |
+| **선배 전용 공개** | 나보다 기수가 앞선 사람에게만 보이는 질문. DB 수준에서 차단 |
+| **익명 표시** | 질문에는 기수만 노출(`42기`). 작성자 정보는 DB에만 보관 |
+| **답변과 기여 유형** | 자료 제보 1점 · 방향 제시 3점 · 전체 답변 8점 |
+| **채택** | 질문 작성자만, 질문당 한 번. 채택되면 +5점 |
+| **랭킹** | 전체 순위와 과목별 순위 |
+| **미답변 우선 정렬** | 답변 없이 오래 기다린 질문이 목록 위로 올라옴 |
+
+---
+
+## 기술 스택
+
+- **Next.js 16** (App Router, 서버 컴포넌트)
+- **Supabase** (PostgreSQL · Auth · RLS)
+- **Vercel** (배포)
+- TypeScript
+
+---
+
+## 설계에서 신경 쓴 것
+
+### 데이터 접근을 화면에서 분리했다
+
+`lib/data/` 안의 함수들이 데이터를 가져오는 방법을 전부 맡습니다. 화면 코드는 `getQuestions()`를 부를 뿐 그 안이 배열인지 DB인지 모릅니다.
+
+덕분에 목데이터를 Supabase로 바꿀 때 **함수 내부만 고치고 화면 코드는 한 줄도 건드리지 않았습니다.**
+
+### 막는 일은 DB가 한다
+
+화면에서 버튼을 숨기거나 입력을 검사하는 것은 **편의**일 뿐입니다. 개발자 도구로 요청을 직접 보내면 전부 우회됩니다. 그래서 실제 차단은 전부 데이터베이스에 두었습니다.
+
+- 선배 전용 질문 → RLS 정책이 기수를 비교해 걸러냄
+- 채택 권한 → RLS 정책이 "이 질문의 작성자인가"를 확인
+- 질문당 채택 1개 → 부분 유니크 인덱스로 물리적 차단
+- 학교 이메일 검증 → 가입 트리거에서 통과 못 하면 계정 생성 자체가 취소
+- 점수 조작 → `score_logs`에 insert 정책이 없어 사용자가 직접 넣을 수 없음
+
+### 점수의 진실은 한 곳에만 둔다
+
+점수는 `score_logs` 테이블에 한 줄씩 기록되고, `profiles.total_score`는 그 합계를 미리 더해둔 사본입니다. 더하는 코드는 DB 트리거 하나뿐입니다.
+
+앱에서도 더하고 트리거에서도 더하면 점수가 두 배가 되기 때문에, **"한 가지 일은 한 곳에서만"** 을 지켰습니다. 점수가 이상하면 `score_logs`만 보면 원인을 찾을 수 있고, 합계가 틀어져도 로그로부터 다시 계산할 수 있습니다.
+
+---
+
+## 개발 중에 바꾼 설계
+
+### 인증: 이메일+비밀번호 → 구글 로그인
+
+처음에는 계획서대로 이메일과 비밀번호로 만들었습니다. 그런데 수업 중 메일 확인 단계가 걸림돌이라 이메일 확인을 껐더니, **그 주소가 실제로 존재하는지 아무도 검사하지 않는 상태**가 되었습니다. `1th1@djshs.djsch.kr`처럼 형식만 맞으면 외부인도 가입할 수 있고, 그러면 선배 전용 질문이 그대로 열립니다.
+
+학교 메일이 Google Workspace라는 것을 확인하고 구글 로그인으로 바꿨습니다. 진짜 그 계정의 주인만 들어올 수 있고, 학생이 비밀번호를 새로 만들 필요도 없으며, 우리가 비밀번호를 보관하지 않으므로 유출 위험 자체가 사라집니다.
+
+계획서에 있던 "비밀번호 해시" 부분은 사라졌지만, 더 안전한 구조를 얻었습니다.
+
+### 테이블을 차시마다 나눠 만들었다
+
+처음 계획은 테이블 5개를 한 번에 만드는 것이었으나, 쓸 데가 없는 테이블을 미리 만들면 왜 필요한지 흐려집니다. `questions` → `profiles` → `answers`·`score_logs` 순서로 필요해질 때마다 만들었습니다.
+
+---
+
+## 실행 방법
+
+```bash
+npm install
+```
+
+프로젝트 루트에 `.env.local` 파일을 만들고 Supabase 값을 넣습니다.
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+```
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`docs/` 안의 SQL을 번호 순서대로 Supabase SQL Editor에서 실행하면 데이터베이스가 준비됩니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 폴더 구조
 
-## Learn More
+```
+app/
+├─ layout.tsx              공통 헤더 (로그인 상태·점수)
+├─ loading.tsx             불러오는 중 화면
+├─ error.tsx               에러 화면
+├─ login/                  구글 로그인
+├─ auth/callback/          구글에서 돌아오는 자리 (route handler)
+├─ questions/              목록 · 작성 · 상세 · 답변
+├─ ranking/                전체 · 과목별 랭킹
+└─ me/                     내 활동
 
-To learn more about Next.js, take a look at the following resources:
+lib/
+├─ supabase/server.ts      쿠키를 읽는 Supabase 클라이언트
+├─ auth.ts                 로그인한 사람 정보
+├─ auth-actions.ts         로그인 · 로그아웃
+├─ cohort.ts               이메일 → 기수·번호 파싱
+└─ data/                   질문 · 답변 · 랭킹 데이터 함수
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+proxy.ts                   세션 갱신 (Next.js 16에서 middleware가 바뀐 이름)
+docs/                      테이블 생성 SQL · 개발 기록
+ROADMAP.md                 차시별 개발 계획과 겪은 문제들
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 앞으로 더 할 수 있는 것
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- 파일 첨부 (Supabase Storage)
+- 신고 기능 — 신고가 쌓인 글을 목록 하단으로
+- 질문 등록 시 점수 차감 — 질문만 하고 답은 안 하는 상태를 막기 위해
+- 내 질문에 답변이 달렸을 때 알림

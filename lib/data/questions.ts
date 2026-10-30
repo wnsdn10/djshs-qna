@@ -78,7 +78,21 @@ function toQuestion(row: QuestionRow): Question {
   };
 }
 
-/** 질문 목록을 최신순으로 가져온다 */
+/**
+ * 질문 목록을 가져온다.
+ *
+ * ★ 8차시 정렬 규칙 (계획서 2번: "오래됐는데 답변이 없는 질문을 목록 위쪽에")
+ *   이 서비스의 존재 이유가 "묻어버린 질문을 줄이는 것"이므로,
+ *   최신순이 아니라 "도움이 필요한 순"으로 보여준다.
+ *
+ *     1) 답변이 0개인 질문을 먼저
+ *     2) 그중에서는 오래 기다린 것부터 (방치된 순서)
+ *     3) 답변이 있는 질문은 그다음에, 최신순
+ *
+ *   DB가 아니라 여기서 정렬하는 이유: Postgres로 쓰면 CASE WHEN이 섞여
+ *   읽기 어려워지는데, 질문이 수백 개 수준이면 가져와서 정렬해도 차이가 없다.
+ *   질문이 수천 개로 늘면 그때 DB 쪽으로 옮겨야 한다. (지금은 아니다)
+ */
 export async function getQuestions(): Promise<Question[]> {
   const supabase = await createClient();
 
@@ -93,7 +107,21 @@ export async function getQuestions(): Promise<Question[]> {
     throw new Error(`질문 목록을 불러오지 못했습니다: ${error.message}`);
   }
 
-  return (data as QuestionRow[]).map(toQuestion);
+  const questions = (data as QuestionRow[]).map(toQuestion);
+
+  return questions.sort((a, b) => {
+    const aWaiting = a.answerCount === 0;
+    const bWaiting = b.answerCount === 0;
+
+    // 1) 미답변을 위로
+    if (aWaiting !== bWaiting) return aWaiting ? -1 : 1;
+
+    // 2) 미답변끼리는 오래된 것부터
+    if (aWaiting) return a.createdAt.localeCompare(b.createdAt);
+
+    // 3) 나머지는 최신순
+    return b.createdAt.localeCompare(a.createdAt);
+  });
 }
 
 // id가 uuid 모양인지 검사하는 정규식
