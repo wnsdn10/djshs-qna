@@ -2,8 +2,8 @@
 //
 // "지금 접속한 사람이 누구인가"를 알아내는 곳.
 // 화면 코드가 Supabase의 세부사항을 몰라도 되도록 여기서 한 번 감싼다.
-// (3차시에 데이터 함수를 lib/data로 뺀 것과 같은 이유다)
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -19,13 +19,23 @@ export type CurrentUser = {
 /**
  * 로그인한 사람의 정보를 가져온다. 로그인 안 했으면 null.
  *
+ * ★ React의 cache()로 감쌌다 — 성능에서 가장 중요한 한 줄이다.
+ *
+ *   이 함수는 한 페이지를 그리는 동안 여러 번 불린다.
+ *     layout.tsx  → 헤더에 "42기 김준우 · 12점"을 띄우려고
+ *     page.tsx    → 채택 버튼을 보여줄지 판단하려고
+ *   그때마다 Auth 서버 왕복 + DB 조회가 일어나면 두 배로 느려진다.
+ *
+ *   cache()는 "같은 요청을 처리하는 동안에는 한 번만 실행하고,
+ *   두 번째부터는 첫 결과를 그대로 돌려준다". 다음 요청이 오면 다시 실행되므로
+ *   로그인 상태가 낡은 채로 남지는 않는다.
+ *
  * ★ getUser()를 쓰는 이유
  *   getSession()은 쿠키에 담긴 내용을 그대로 믿기 때문에 서버에서 쓰면 안 된다.
  *   쿠키는 사용자가 고칠 수 있으니, "나 42기야"라고 적어 보내면 그대로 믿어버린다.
  *   getUser()는 Supabase 인증 서버에 토큰이 진짜인지 물어보고 답을 받는다.
- *   매번 왕복이 한 번 생기지만, 그게 안전의 값이다.
  */
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const supabase = await createClient();
 
   const {
@@ -52,7 +62,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     studentNo: profile.student_no,
     totalScore: profile.total_score,
   };
-}
+});
 
 /**
  * 로그인이 반드시 필요한 화면에서 쓴다.

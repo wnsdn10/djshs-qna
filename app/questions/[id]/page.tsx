@@ -44,13 +44,17 @@ export default async function QuestionDetailPage({
   const { id } = await params;
   const { error } = await searchParams;
 
-  const question = await getQuestion(id);
-  if (!question) notFound();
+  // ★ 셋을 동시에 요청한다.
+  //   하나씩 await하면 앞의 것이 끝나야 다음이 시작되므로 기다리는 시간이 쌓인다.
+  //   Promise.all은 셋을 함께 보내고 가장 느린 하나만큼만 기다린다.
+  //   (질문이 없는 경우 답변 조회가 헛일이 되지만, 그런 경우는 드물다)
+  const [question, answers, user] = await Promise.all([
+    getQuestion(id),
+    getAnswers(id),
+    getCurrentUser(),
+  ]);
 
-  // 질문과 답변, 로그인 정보를 한꺼번에 가져온다.
-  // Promise.all을 쓰면 셋을 동시에 요청해서 기다리는 시간이 줄어든다.
-  // (하나씩 await 하면 앞의 것이 끝나야 다음이 시작된다)
-  const [answers, user] = await Promise.all([getAnswers(id), getCurrentUser()]);
+  if (!question) notFound();
 
   const isQuestionAuthor = user !== null && user.id === question.authorId;
   const hasAccepted = answers.some((a) => a.isAccepted);
