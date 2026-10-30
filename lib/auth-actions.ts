@@ -12,8 +12,16 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
-/** 학교 Google Workspace 도메인 */
-export const SCHOOL_DOMAIN = "djshs.djsch.kr";
+/**
+ * 학교 Google Workspace 도메인
+ *
+ * ★ export를 붙이면 안 된다.
+ *   'use server' 파일에서 export한 것은 전부 "브라우저가 불러도 되는 서버 함수"로
+ *   등록되는데, 상수는 함수가 아니라서 Next.js가 거부한다.
+ *   ("Only async functions are allowed to be exported in a 'use server' file")
+ *   다른 파일에서도 써야 한다면 일반 파일로 따로 빼야 한다.
+ */
+const SCHOOL_DOMAIN = "djshs.djsch.kr";
 
 /**
  * 구글(학교 계정) 로그인.
