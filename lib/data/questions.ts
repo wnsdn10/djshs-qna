@@ -23,6 +23,8 @@ export type Question = {
   qType: QuestionType;
   visibility: Visibility;
   status: QuestionStatus;
+  /** 누가 썼는지. 채택 버튼을 보여줄지 판단하는 데 쓴다 */
+  authorId: string | null;
   /** 화면에는 "43기"처럼 기수만 보인다. 이름은 익명 */
   authorCohort: number;
   answerCount: number;
@@ -54,6 +56,7 @@ type QuestionRow = {
   q_type: QuestionType;
   visibility: Visibility;
   status: QuestionStatus;
+  author_id: string | null;
   author_cohort: number | null;
   answer_count: number;
   created_at: string;
@@ -68,6 +71,7 @@ function toQuestion(row: QuestionRow): Question {
     qType: row.q_type,
     visibility: row.visibility,
     status: row.status,
+    authorId: row.author_id,
     authorCohort: row.author_cohort ?? 0,
     answerCount: row.answer_count,
     createdAt: row.created_at.slice(0, 10),

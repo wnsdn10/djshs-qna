@@ -20,13 +20,29 @@
 
 개발 도중에 이걸 바꾸면 앞서 쓴 코드를 대부분 다시 써야 한다. 1차시 전에 확정할 것.
 
-### 결정 A — 인증은 Supabase Auth를 쓴다
+### 결정 A — 인증은 학교 구글 계정(Google OAuth)으로 한다
 
-계획서에는 "비밀번호를 원문 그대로가 아니라 알아볼 수 없는 형태로 바꾸어 저장"이라고 되어 있다. 이걸 직접 구현할 수도 있지만(bcrypt로 해시), **정석 Next.js에서는 세션을 쿠키로 직접 관리해야 해서 난이도가 급격히 올라간다.** 8차시 안에 안전하게 끝내려면 Supabase Auth를 쓰는 게 맞다.
+> 처음에는 이메일+비밀번호로 만들었다가 6차시 도중에 바꿨다. **바꾼 과정 자체가 설계 판단의 예**라 남겨둔다.
 
-- Supabase Auth는 내부적으로 bcrypt로 해시해서 `auth.users` 테이블에 저장한다.
-- 학습 목표(해시를 이해하기)는 **6차시에 Supabase Table Editor에서 `auth.users`의 `encrypted_password` 컬럼을 직접 열어보는 것**으로 달성한다. 내가 입력한 비밀번호와 저장된 값이 전혀 다르다는 걸 눈으로 확인하고, 왜 되돌릴 수 없는지 보고서에 쓴다.
-- 학교 이메일 도메인 제한(`djshs.djsch.kr`)은 Auth가 대신 해주지 않는다. **직접 검증해야 한다.** (6차시)
+**처음 계획**: Supabase Auth의 이메일+비밀번호. 계획서 2번의 "비밀번호를 알아볼 수 없는 형태로 바꾸어 저장"을 그대로 따른 것이었다.
+
+**발견한 문제**: 수업 중에 메일 확인 단계가 걸림돌이라 Confirm email을 껐는데, 그러면 **그 주소가 실제로 존재하는지 아무도 확인하지 않는다.** `1th1@djshs.djsch.kr`처럼 형식만 맞으면 외부인도 가입된다. 선배 전용 질문이 그대로 열리는 셈이다.
+
+**바꾼 결과**: 학교 메일이 Google Workspace였다 (`djshs.djsch.kr`의 MX 레코드가 전부 `aspmx.l.google.com`). 그래서 구글 로그인이 가능했고,
+
+- 진짜 그 계정의 주인만 들어온다
+- 학생이 비밀번호를 새로 만들 필요가 없다 → 실제로 쓰는 사람 수가 달라진다
+- 우리가 비밀번호를 보관하지 않으므로 유출 위험 자체가 없다
+
+**학교 계정만 들어오게 하는 장치 세 겹**
+
+1. Google Cloud의 OAuth 대상을 **"내부(Internal)"** 로 → 조직 밖 계정은 로그인 화면조차 통과 못 함
+2. `app/auth/callback`에서 `parseSchoolEmail()`로 재확인
+3. DB 트리거가 또 확인 → 통과 못 하면 가입이 통째로 취소
+
+> 가운데 2번이 왜 필요한가: 1번과 3번은 **설정**이라 사람이 바꾸다 실수할 수 있다. 코드로 박아둔 검사는 그대로 남는다.
+
+계획서의 "비밀번호 해시" 학습 포인트는 사라졌지만, **왜 설계를 바꿨는지**가 보고서에 쓸 더 나은 내용이 된다.
 
 ### 결정 B — 기수·번호는 가입할 때 한 번만 계산해서 저장한다
 
@@ -458,7 +474,9 @@ fix: 제목 미입력 시 검증 메시지 표시
 **세부 단계**
 
 1. **Supabase 프로젝트 생성** (Region: Northeast Asia (Seoul) 권장)
-2. **SQL Editor에서 테이블 5개 생성** — `docs/schema.sql`의 내용을 실행하고, 실행한 SQL을 그 파일에 최종본으로 저장
+   > **★ 무료 플랜은 일주일쯤 접속이 없으면 프로젝트를 일시정지한다.** 수업 간격과 정확히 겹치므로 앞으로 매번 겪는다. 데이터는 지워지지 않고 대시보드에서 Resume을 누르면 1~2분 뒤 깨어난다.
+   > **수업을 시작할 때 Supabase 대시보드부터 열어보는 습관**을 들일 것. "어제까지 되던 게 갑자기 서버 에러"면 코드를 의심하기 전에 여기를 먼저 본다.
+2. **SQL Editor에서 `questions` 테이블 생성** — 테이블은 차시마다 나눠 만든다. 5차시엔 `questions` 하나, 6차시에 `profiles`, 7차시에 `answers`·`score_logs`. 한꺼번에 만들면 어느 테이블이 왜 필요한지 흐려진다. 실행한 SQL은 `docs/`에 보관
 3. **환경변수 설정** ★ 사고 방지
    ```
    # .env.local
@@ -512,66 +530,83 @@ docs: 테이블 생성 SQL 최종본 기록
 
 ### 6차시 — 서버·DB: 인증 (가장 큰 산, 2차시로 나눠도 좋음)
 
-> **이번 차시 목표**: 학교 이메일로 가입·로그인이 되고, 헤더에 "42기 김준우"가 뜬다. 새로고침해도 유지된다.
+> **이번 차시 목표**: 학교 구글 계정으로 로그인하면 헤더에 "42기 김준우"가 뜬다. 새로고침해도 유지된다.
 
 **세부 단계**
 
-1. Supabase Dashboard → Authentication → Email 가입 활성화. 학습용이므로 **이메일 확인(Confirm email)은 일단 끈다** (실제 메일함 접근이 필요해서 수업 중 막힌다)
+1. Supabase Dashboard → Authentication → **Google provider 활성화** (3번에서 받은 Client ID/Secret 입력)
 2. **`lib/cohort.ts` 작성** (**결정 B**)
    ```ts
+   const SCHOOL_EMAIL = /^(\d+)th(\d+)@djshs\.djsch\.kr$/;
+
    export function parseSchoolEmail(email) {
-     const m = /^(\d+)th(\d+)@djshs\.djsch\.kr$/.exec(email.trim().toLowerCase())
+     const m = SCHOOL_EMAIL.exec(email.trim().toLowerCase())
      if (!m) return null
      return { cohort: Number(m[1]), studentNo: Number(m[2]) }
    }
    ```
-   테스트: `42th16@djshs.djsch.kr` → OK / `42th16@gmail.com` → null / `abc@djshs.djsch.kr` → null
-3. **회원가입 화면**
-   - 도메인 검증(위 함수가 `null`이면 거부) → 비밀번호 8자 이상 → 비밀번호 확인 일치
-   - `supabase.auth.signUp({ email, password, options: { data: { name } } })`
-4. **`profiles` 자동 생성 트리거** — `auth.users`에 행이 생기면 `profiles`도 만들어지게
+   > `^`와 `$`가 안전장치다. 없으면 `42th16@djshs.djsch.kr.evil.com`이 통과한다 — **도메인은 뒤에서부터 읽으므로 그 주소의 주인은 `evil.com`이다.** `\.`의 백슬래시도 마찬가지로, 정규식에서 점은 "아무 글자"라는 뜻이라 막아줘야 한다.
+   > 테스트: `42th16@djshs.djsch.kr` → OK / `42TH16@...`(대문자) → OK / `42th16@gmail.com` → null / `abc@djshs.djsch.kr` → null / `...kr.evil.com` → null
+3. **Google Cloud에서 OAuth 클라이언트 만들기**
+   - 프로젝트 생성 → **Google 인증 플랫폼** → 대상을 **"내부(Internal)"**로 (조직 계정만 로그인 가능, 구글 심사 불필요)
+   - 사용자 인증 정보 → OAuth 클라이언트 ID → **웹 애플리케이션**
+   - 승인된 JavaScript 원본: `http://localhost:3000`, 배포 주소
+   - 승인된 리디렉션 URI: `https://<프로젝트>.supabase.co/auth/v1/callback` (Supabase의 Google 패널에 적혀 있다)
+   - Client ID / Secret을 Supabase → Authentication → Providers → Google에 입력하고 Enable
+   > **Secret은 그 창을 닫으면 다시 못 본다.** 바로 복사하거나 JSON을 받아둘 것.
+4. **Supabase → Authentication → URL Configuration**
+   - Site URL: 배포 주소
+   - Redirect URLs: `http://localhost:3000/**` 와 `<배포 주소>/**` 둘 다
+   > 이걸 빼먹으면 로컬은 되는데 배포본만 `redirect_uri_mismatch`가 난다.
+5. **`profiles` 자동 생성 트리거** — `auth.users`에 행이 생기면 `profiles`도 만들어지게
    ```sql
    create function public.handle_new_user() returns trigger as $$
+   declare parts text[];
    begin
+     parts := regexp_match(lower(new.email), '^(\d+)th(\d+)@djshs\.djsch\.kr$');
+     if parts is null then
+       raise exception '학교 이메일로만 가입할 수 있습니다';
+     end if;
      insert into public.profiles (id, email, name, cohort, student_no)
-     values (
-       new.id, new.email,
-       new.raw_user_meta_data->>'name',
-       (regexp_match(new.email, '^(\d+)th(\d+)@'))[1]::int,
-       (regexp_match(new.email, '^(\d+)th(\d+)@'))[2]::int
-     );
+     values (new.id, lower(new.email),
+             coalesce(new.raw_user_meta_data->>'name',''),
+             (parts[1])::int, (parts[2])::int);
      return new;
-   end; $$ language plpgsql security definer;
+   end; $$ language plpgsql security definer set search_path = public;
    ```
-   > 왜 트리거인가: 클라이언트가 `profiles`에 직접 insert 하게 두면, 누군가 `cohort: 1`로 조작해서 모든 선배 전용 질문을 볼 수 있다. **서버(DB)가 계산해야 안전하다.**
-5. **★ 비밀번호 해시 확인** — Table Editor에서 `auth.users`의 `encrypted_password` 열기. 내가 입력한 값과 전혀 다른 문자열이 저장돼 있다. 스크린샷을 찍어 보고서에 넣을 것. (**결정 A**)
-6. **로그인 / 로그아웃** — `signInWithPassword`, `signOut`. 틀리면 "이메일 또는 비밀번호가 올바르지 않습니다" (계획서 스케치의 빨간 글씨)
-7. **`proxy.ts` 작성** ★ (**결정 D**) — 요청마다 세션 토큰을 갱신하고 쿠키에 다시 심는다. 이게 없으면 새로고침할 때마다 로그아웃된다. Supabase 공식 문서 코드를 쓰되 **파일명과 함수명을 `proxy`로** 바꿀 것.
-8. **보호된 페이지** — 서버 컴포넌트에서 `supabase.auth.getClaims()`로 확인하고, 없으면 `redirect('/login')`
-   > `getSession()`이 아니라 **`getClaims()`**를 쓴다. 서버에서 `getSession()`은 토큰 검증을 보장하지 않아 Supabase가 명시적으로 권장하지 않는다.
-9. 헤더에 로그인한 사람의 기수·이름 표시
+   > 왜 트리거인가: 클라이언트가 `profiles`에 직접 insert 하게 두면, 누군가 `cohort: 1`로 조작해서 모든 선배 전용 질문을 볼 수 있다. 기수는 사용자가 "정하는" 값이 아니라 이메일에서 "계산되는" 값이므로 **DB가 계산해야 안전하다.**
+   > 여기서 예외를 던지면 `auth.users` insert까지 통째로 취소되어, "계정은 생겼는데 프로필이 없는" 상태가 아예 생기지 않는다.
+6. **로그인 화면** — 구글 버튼 하나. 가입과 로그인이 나뉘지 않는다 (`signInWithOAuth`)
+7. **콜백 라우트** `app/auth/callback/route.ts` — `page.tsx`가 아니라 `route.ts`다. 화면을 그리는 게 아니라 임시 코드를 세션으로 바꾸고(`exchangeCodeForSession`) 넘기는 일만 한다
+8. **`proxy.ts` 작성** ★ (**결정 D**) — 요청마다 세션 토큰을 갱신하고 쿠키에 다시 심는다. 이게 없으면 새로고침할 때마다 로그아웃된다. **파일명과 함수명을 `proxy`로** 할 것
+9. **보호된 페이지** — 서버 컴포넌트에서 `supabase.auth.getUser()`로 확인하고, 없으면 `redirect('/login')`
+   > `getSession()`은 쿠키 내용을 그대로 믿기 때문에 서버에서 쓰면 안 된다. 쿠키는 사용자가 고칠 수 있다. `getUser()`는 Supabase에 토큰이 진짜인지 물어보고 답을 받는다.
+   > (`getClaims()`가 더 빠르지만 반환 형태가 문서에 명확하지 않아 이 프로젝트에서는 `getUser()`를 썼다)
+10. 헤더에 로그인한 사람의 기수·이름·점수 표시
 
 **완료 판정**
-- [ ] `@gmail.com`으로 가입하면 거부된다
-- [ ] 가입하면 `profiles`에 기수·번호가 숫자로 들어간다
-- [ ] 틀린 비밀번호로 로그인하면 에러 메시지가 뜬다
+- [ ] 학교 계정이 아니면 로그인되지 않는다
+- [ ] 로그인하면 `profiles`에 기수·번호가 숫자로 들어간다
 - [ ] 로그인 후 새로고침해도 로그인 상태가 유지된다
 - [ ] 로그아웃 상태로 `/questions/new`에 가면 로그인 화면으로 튕긴다
+- [ ] 배포본에서도 구글 로그인이 된다
 
 **막히는 지점**
 | 증상 | 원인 |
 |---|---|
 | **새로고침하면 로그아웃된다** | `proxy.ts`가 없거나 파일명이 `middleware.ts`다 (**결정 D**) |
 | 서버 컴포넌트에서 로그인 정보를 못 읽음 | `server.ts`의 쿠키 `setAll` 처리 누락 |
-| 가입은 됐는데 `profiles`가 비어 있음 | 트리거 미생성, 또는 `security definer` 누락 |
-| "Email not confirmed" | 대시보드에서 이메일 확인을 안 껐다 |
+| 로그인은 됐는데 `profiles`가 비어 있음 | 트리거 미생성, 또는 `security definer` 누락 |
+| `redirect_uri_mismatch` | Google Cloud의 리디렉션 URI 또는 Supabase의 Redirect URLs 누락·오타 |
+| **HTTP 431 (요청 헤더가 너무 큼)** | 쿠키가 쌓였다. F12 → Application → Clear site data |
+| `Only async functions are allowed to be exported in a "use server" file` | `'use server'` 파일에서 상수를 export했다. export를 떼거나 일반 파일로 옮긴다 |
 
 **커밋 메시지 예시**
 ```
-feat: 학교 이메일 도메인 검증과 기수 파싱 함수 추가
-feat: 회원가입/로그인 구현
+feat: 학교 이메일에서 기수·번호를 추출하는 함수 추가
+feat: 구글 학교계정 로그인으로 전환하고 이메일 로그인 제거
 feat: proxy.ts로 세션 유지 처리
-fix: profiles 자동 생성 트리거를 DB 측에서 처리하도록 변경
+fix: profiles 자동 생성을 DB 트리거로 처리
 ```
 
 ---
@@ -702,6 +737,11 @@ docs: README와 결과 보고서용 개발 기록 정리
 | `process.env.X`가 undefined | `NEXT_PUBLIC_` 접두사 확인 + 서버 재시작 |
 | 로컬은 되는데 Vercel은 안 됨 | Vercel 환경변수 미등록 |
 | 빌드 실패인데 로컬 dev는 됨 | 타입 에러. `npm run build`를 차시마다 한 번씩 돌려볼 것 |
+| **어제까지 되던 게 갑자기 서버 에러** | **Supabase 프로젝트가 일시정지됐다.** 무료 플랜은 일주일쯤 안 쓰면 자동으로 잠든다. 대시보드에서 Resume (1~2분). 데이터는 그대로 있다 |
+| `Only async functions are allowed to be exported in a "use server" file` | 그 파일에서 상수를 export했다. `'use server'` 파일의 export는 전부 "브라우저가 호출할 수 있는 서버 함수"로 등록되는데 상수는 함수가 아니다 |
+| **push했는데 Vercel에 배포가 안 생김** | push가 실제로 안 됐다. `git log --oneline -3`에서 `origin/main`이 어디 붙어 있는지 확인. 맨 위가 아니면 아직 로컬에만 있는 것 |
+| HTTP 431 (요청 헤더가 너무 큼) | 쿠키가 쌓였다. F12 → Application → Clear site data |
+| 에러가 여러 개 쏟아진다 | **첫 번째부터 고친다.** 모듈 하나가 깨지면 그걸 쓰는 쪽에서 "그런 거 없다"는 에러가 줄줄이 따라 나온다. 하나 고치면 나머지가 같이 사라지는 경우가 많다 |
 
 ---
 
