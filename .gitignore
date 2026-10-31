@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude가 대화창으로 보낸 파일이 데스크톱 앱에 의해 자동 저장되는 곳.
+# 프로젝트 안의 파일과 똑같은 복사본이라 커밋하면 안 된다.
+/Claude outputs/

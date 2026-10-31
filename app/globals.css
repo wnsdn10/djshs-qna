@@ -1,313 +1,747 @@
-/* 색을 한 곳에 모아둔다. 나중에 색을 바꿀 때 여기만 고치면 된다. */
+/* ============================================================
+   상호 협력 학습 지원 시스템 — 디자인 시스템
+   스타일: Minimalism & Swiss  /  패턴: Community · Forum
+
+   색을 고른 이유
+     - 주색은 계획서 스케치의 딥 틸을 유지했다. 과학고다운 차분함 + 원래 구상의 정체성.
+     - 배경은 스케치의 남색 대신 밝은 중성색으로 바꿨다. Q&A는 긴 글을 읽는 서비스라
+       어두운 배경에 본문이 길면 눈이 빨리 피로해진다.
+     - 점수·명성에는 앰버를 따로 뒀다. 주색과 섞이지 않아야 "점수"가 한눈에 들어온다.
+     - 채택·해결은 초록, 미답변은 붉은색. 상태를 색만으로 구분하지 않고
+       글자와 모양(막대, 아이콘)도 함께 쓴다 — 색각 이상인 사람도 구분할 수 있어야 한다.
+   ============================================================ */
+
 :root {
-  --bg: #1b5e7e;      /* 계획서 스케치의 남색 배경 */
-  --card: #e8eaec;    /* 밝은 회색 카드 */
-  --ink: #16232a;     /* 글자색 */
-  --muted: #5b6b73;   /* 흐린 글자 */
-  --line: #c6ced3;    /* 구분선 */
-  --item: #d8dcdf;    /* 목록 안 항목 배경 */
-  --accent: #2b7a99;  /* 버튼 */
-  --red: #c0392b;     /* 미답변 */
-  --green: #2e7d4f;   /* 답변 완료 */
+  /* ---- 면 ---- */
+  --bg: #f5f8f9;
+  --surface: #ffffff;
+  --surface-2: #eef3f5;
+  --border: #dbe4e8;
+  --border-strong: #c3d1d7;
+
+  /* ---- 글자 ---- (전부 흰 배경에서 4.5:1 이상) */
+  --ink: #0f1e24;
+  --ink-2: #3d5862;
+  --muted: #556e78;
+
+  /* ---- 주색: 딥 틸 ---- */
+  --primary: #0e5c70;
+  --primary-hover: #0a4959;
+  --primary-ink: #ffffff;
+  --primary-soft: #e3eff3;
+
+  /* ---- 상태 ---- */
+  --success: #146c43;
+  --success-soft: #dcf2e5;
+  --danger: #a82a22;
+  --danger-soft: #fbe6e4;
+
+  /* ---- 점수·명성 ---- */
+  --score: #9a5b06;
+  --score-soft: #fbeedb;
+
+  /* ---- 그림자: Swiss 스타일이라 아주 얕게 ---- */
+  --shadow-sm: 0 1px 2px rgba(15, 30, 36, 0.06);
+  --shadow-md: 0 1px 3px rgba(15, 30, 36, 0.08), 0 4px 12px -6px rgba(15, 30, 36, 0.12);
+
+  /* ---- 간격 (8px 기준) ---- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-pill: 999px;
+
+  --sans: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+
+  /* 모션: 짧고 일정하게 */
+  --t-fast: 120ms;
+  --t: 200ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
 }
 
-* {
+/* 다크 모드 — 토큰만 바꾼다. 컴포넌트 CSS는 그대로 쓰인다. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c1418;
+    --surface: #131f25;
+    --surface-2: #1b2c34;
+    --border: #263b44;
+    --border-strong: #35505c;
+
+    --ink: #e8eff1;
+    --ink-2: #b7c8ce;
+    --muted: #92a8b1;
+
+    --primary: #57b4c9;
+    --primary-hover: #74c6d8;
+    --primary-ink: #04212a;
+    --primary-soft: #15343e;
+
+    --success: #5fc98e;
+    --success-soft: #11312220;
+    --danger: #f0897e;
+    --danger-soft: #3a1b18;
+
+    --score: #e3a95e;
+    --score-soft: #33240f;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.5), 0 4px 12px -6px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* ============================================================
+   기본
+   ============================================================ */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: system-ui, "Malgun Gothic", sans-serif;
-  line-height: 1.6;
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ---- 공통 헤더 (layout.tsx) ---- */
-.site-header {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  padding: 1rem 1.5rem;
-  background: var(--card);
-  border-bottom: 1px solid var(--line);
-  flex-wrap: wrap;
+/* 키보드로 이동할 때 지금 어디인지 반드시 보여야 한다.
+   마우스 클릭에는 안 뜨도록 :focus-visible을 쓴다. */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
-.site-header .logo {
-  font-weight: 700;
-  text-decoration: none;
-  color: var(--ink);
+/* 움직임에 불편을 느끼는 사용자를 위해 전환을 끈다 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-.site-header nav {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-left: auto; /* 남는 공간을 왼쪽에 몰아 메뉴를 오른쪽 끝으로 민다 */
-  flex-wrap: wrap;
-}
-
-.site-header nav a {
-  text-decoration: none;
-  color: var(--ink);
-}
-
-.site-header nav a:hover {
-  text-decoration: underline;
-}
-
-/* 헤더의 "42기 김준우 · 12점" 표시 */
-.whoami {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.45rem;
-  font-size: 0.9rem;
-  color: var(--muted);
-  padding-left: 0.8rem;
-  border-left: 1px solid var(--line);
-}
-
-.whoami b {
-  color: var(--accent);
-  font-size: 0.85rem;
-}
-
-/* 로그아웃처럼 "동작"하는 것은 링크가 아니라 버튼이어야 한다.
-   생김새만 링크처럼 맞춘다. */
-.linkbtn {
-  background: none;
-  border: 0;
-  padding: 0;
-  color: var(--ink);
-  font: inherit;
-  font-size: 0.95rem;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.linkbtn:hover {
-  text-decoration: underline;
-}
-
-/* ---- 각 화면이 들어가는 카드 ---- */
-.container {
-  max-width: 900px;
-  margin: 2rem auto;
-  padding: 1.5rem;
-  background: var(--card);
-  border-radius: 12px;
+h1,
+h2,
+h3 {
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 h1 {
-  margin-top: 0;
+  margin: 0;
   font-size: 1.5rem;
+  font-weight: 600;
 }
 
-/* ---- 목록 화면 머리글 ---- */
+a {
+  color: var(--primary);
+  text-underline-offset: 2px;
+}
+
+/* 키보드 사용자가 본문으로 바로 건너뛸 수 있게 */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--primary);
+  color: var(--primary-ink);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: 0 0 var(--radius-sm) 0;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+/* ============================================================
+   헤더
+   ============================================================ */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-inner {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.logo-mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--primary-ink);
+  flex: none;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+/* 터치 목표를 충분히 — 세로 44px 확보 */
+.site-nav a,
+.linkbtn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  color: var(--ink-2);
+  text-decoration: none;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.site-nav a:hover,
+.linkbtn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+/* 내 점수 — 숫자는 모노로 써야 자릿수가 바뀌어도 흔들리지 않는다 */
+.whoami {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  font-size: 0.85rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.whoami b {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--score);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   레이아웃
+   ============================================================ */
+.container {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: var(--sp-6) var(--sp-4) var(--sp-7);
+}
+
 .page-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 0.75rem;
-  margin-bottom: 1rem;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+  flex-wrap: wrap;
+}
+
+.lead {
+  margin: calc(-1 * var(--sp-3)) 0 var(--sp-5);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+/* ============================================================
+   버튼
+   ============================================================ */
+.btn,
+.btn-ghost,
+.btn-accept {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
 }
 
 .btn {
-  background: var(--accent);
-  color: #fff;
-  text-decoration: none;
-  padding: 0.45rem 0.9rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  white-space: nowrap;
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+.btn:hover {
+  background: var(--primary-hover);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-2);
+  border-color: var(--border-strong);
+}
+.btn-ghost:hover {
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 .btn-plain {
-  display: inline-block;
-  margin-top: 1.5rem;
-  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  color: var(--muted);
   text-decoration: none;
+  font-size: 0.9rem;
 }
-
 .btn-plain:hover {
-  text-decoration: underline;
+  color: var(--primary);
 }
 
-.page-head .btn-plain {
-  margin-top: 0;
+/* ============================================================
+   검색 · 필터
+   ============================================================ */
+.search-wrap {
+  position: relative;
+  margin-bottom: var(--sp-3);
 }
 
-/* ---- 검색 · 태그 필터 ---- */
+.search-wrap svg {
+  position: absolute;
+  left: var(--sp-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
 .search {
   width: 100%;
-  padding: 0.55rem 0.8rem;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--item);
+  min-height: 44px;
+  padding: 0 var(--sp-4) 0 2.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
   font-size: 0.95rem;
   font-family: inherit;
+}
+
+.search::placeholder {
+  color: var(--muted);
 }
 
 .tag-filter {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0.75rem 0 1rem;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-5);
 }
 
 .tag-btn {
-  border: 1px solid var(--line);
-  background: var(--item);
-  color: var(--ink);
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink-2);
+  border-radius: var(--radius-pill);
   font-size: 0.85rem;
   font-family: inherit;
+  text-decoration: none;
   cursor: pointer;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
 }
 
 .tag-btn:hover {
-  border-color: var(--accent);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .tag-btn.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-ink);
 }
 
-/* ---- 질문 카드 ---- */
+/* ============================================================
+   질문 카드
+   ============================================================ */
 .q-list {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: var(--sp-2);
 }
 
 .q-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.9rem 1rem;
-  background: var(--item);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  display: block;
+  position: relative;
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) calc(var(--sp-4) + 4px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   text-decoration: none;
   color: var(--ink);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+
+/* 상태를 왼쪽 색 막대로 — 색만이 아니라 "위치와 모양"으로도 구분된다 */
+.q-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--sp-3);
+  bottom: var(--sp-3);
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--border-strong);
+}
+
+.q-card[data-status="unanswered"]::before {
+  background: var(--score);
+}
+.q-card[data-status="answered"]::before {
+  background: var(--primary);
+}
+.q-card[data-status="resolved"]::before {
+  background: var(--success);
 }
 
 .q-card:hover {
-  border-color: var(--accent);
-}
-
-.q-card-main {
-  flex: 1;
-  min-width: 0;
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 
 .q-card-title {
+  font-size: 1.02rem;
   font-weight: 600;
+  line-height: 1.45;
+  margin-bottom: var(--sp-2);
+}
+
+.q-card-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 
 .q-card-tags {
-  font-size: 0.85rem;
-  color: var(--muted);
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
 }
 
-.q-card-meta {
-  font-size: 0.85rem;
-  color: var(--muted);
+/* ============================================================
+   배지 · 칩
+   ============================================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
 }
 
-/* ---- 상태 배지 ---- */
-.badge {
-  flex: none;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #fff;
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
+/* 답변 기다리는 중 = 호박색.
+   빨강은 "에러"에만 쓴다 (입력 오류, 화면 로드 실패).
+   답변이 없는 건 잘못된 상태가 아니라 "점수를 받을 수 있는 자리"다.
+   그래서 점수와 같은 색 계열을 쓴다. */
+.badge-unanswered {
+  background: var(--score-soft);
+  color: var(--score);
+}
+.badge-answered {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.badge-resolved {
+  background: var(--success-soft);
+  color: var(--success);
 }
 
-.badge-unanswered { background: var(--red); }
-.badge-answered   { background: var(--accent); }
-.badge-resolved   { background: var(--green); }
+.tag {
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+}
 
-/* ---- 질문 상세 ---- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.chip-score {
+  background: var(--score-soft);
+  color: var(--score);
+  font-family: var(--mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip-ok {
+  background: var(--success-soft);
+  color: var(--success);
+  font-weight: 600;
+}
+
+.lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   질문 상세
+   ============================================================ */
 .q-detail-head {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
   flex-wrap: wrap;
-  margin-bottom: 0.5rem;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
 }
 
 .q-detail h1 {
-  margin: 0.3rem 0;
+  font-size: 1.5rem;
+  margin-bottom: var(--sp-3);
 }
 
+/* 본문은 한 줄이 너무 길면 읽기 어렵다 */
 .q-detail-body {
-  white-space: pre-wrap; /* 줄바꿈을 그대로 살린다 */
+  max-width: 65ch;
+  white-space: pre-wrap;
+  color: var(--ink-2);
+  margin: 0 0 var(--sp-4);
 }
 
-.q-detail hr {
-  border: 0;
-  border-top: 1px solid var(--line);
-  margin: 1.5rem 0 1rem;
-}
-
-.answers-title {
-  font-size: 1.05rem;
-  margin: 0 0 0.5rem;
-}
-
-.empty {
+.q-meta {
+  font-size: 0.85rem;
   color: var(--muted);
-  font-size: 0.92rem;
 }
 
-/* 선배에게만 공개인 질문 표시 */
-.lock {
-  margin-left: 0.5rem;
-  font-size: 0.75rem;
+.divider {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: var(--sp-6) 0 var(--sp-5);
+}
+
+.sec-title {
+  font-size: 1.05rem;
   font-weight: 600;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  padding: 0.05rem 0.35rem;
-  white-space: nowrap;
+  margin: 0 0 var(--sp-4);
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
 }
 
-/* ---- 폼 (질문 작성 · 로그인 · 회원가입 공용) ---- */
+.sec-title .count {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   답변
+   ============================================================ */
+.answer-list {
+  list-style: none;
+  margin: 0 0 var(--sp-5);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.answer {
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* ★ 채택된 답변은 분명히 드러나야 한다.
+   커뮤니티 Q&A에서 "채택된 답변이 묻히는 것"이 대표적인 설계 실패다.
+   초록 테두리 + 상단 띠 + 아이콘, 세 가지로 표시한다. */
+.answer.accepted {
+  border-color: var(--success);
+  box-shadow: 0 0 0 1px var(--success);
+}
+
+.accepted-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: calc(-1 * var(--sp-4)) calc(-1 * var(--sp-4)) var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: var(--radius) var(--radius) 0 0;
+  width: calc(100% + var(--sp-4) * 2);
+}
+
+.answer-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  font-size: 0.88rem;
+}
+
+.answer-who {
+  font-weight: 600;
+}
+
+.answer-date {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.answer-body {
+  margin: 0;
+  max-width: 65ch;
+  white-space: pre-wrap;
+  color: var(--ink-2);
+}
+
+.accept-form {
+  margin-top: var(--sp-3);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-accept {
+  background: var(--surface);
+  color: var(--success);
+  border-color: var(--success);
+  min-height: 40px;
+  font-size: 0.87rem;
+}
+
+.btn-accept:hover {
+  background: var(--success-soft);
+}
+
+/* ============================================================
+   폼
+   ============================================================ */
 .form {
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
-  max-width: 460px;
+  gap: var(--sp-5);
+  max-width: 34rem;
 }
 
-/* 질문 작성 폼은 넓게 */
-.form:has(textarea) {
+.form-wide {
   max-width: none;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--sp-2);
   border: 0;
   padding: 0;
   margin: 0;
+  min-width: 0;
 }
 
 .field > label,
 .field > legend {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
   padding: 0;
+}
+
+/* 설명은 입력칸 "앞"에 둔다. 다 쓰고 나서 읽으면 늦다. */
+.field-help {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 
 .field input[type="text"],
@@ -315,224 +749,263 @@ h1 {
 .field input[type="password"],
 .field textarea {
   width: 100%;
-  padding: 0.55rem 0.8rem;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--item);
+  min-height: 44px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   color: var(--ink);
   font-size: 0.95rem;
   font-family: inherit;
   line-height: 1.6;
   resize: vertical;
+  transition: border-color var(--t-fast) var(--ease);
 }
 
-.field input:focus,
-.field textarea:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+.field input:hover,
+.field textarea:hover {
+  border-color: var(--muted);
 }
 
-.radio-row {
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--muted);
+}
+
+/* 라디오를 카드처럼 — 터치 목표가 커지고 선택 상태가 분명해진다 */
+.choice-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: var(--sp-2);
 }
 
-.radio-row label {
-  display: flex;
+.choice {
+  display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  font-size: 0.93rem;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 0.9rem;
   cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+
+.choice:hover {
+  border-color: var(--primary);
+}
+
+.choice:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.choice:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.choice input {
+  accent-color: var(--primary);
+  margin: 0;
+}
+
+.pts {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--score);
+  font-variant-numeric: tabular-nums;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
+  gap: var(--sp-3);
 }
 
-.form-actions .btn {
-  border: 0;
-  cursor: pointer;
+/* 오류는 해당 입력칸 가까이, 아이콘과 함께 */
+.form-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 0.88rem;
+  font-weight: 500;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  margin: 0 0 var(--sp-4);
+  max-width: 34rem;
+}
+
+.form-error svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* ============================================================
+   빈 상태 — 그냥 "없습니다"로 끝내지 않고 다음 행동을 제안한다
+   ============================================================ */
+.empty {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.empty-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-7) var(--sp-4);
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+
+.empty-box svg {
+  color: var(--border-strong);
+}
+
+.empty-box p {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+/* ============================================================
+   로그인
+   ============================================================ */
+.login-box {
+  max-width: 26rem;
+  margin: var(--sp-7) auto;
+  padding: var(--sp-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+
+.login-box h1 {
+  font-size: 1.3rem;
+}
+
+.login-lead {
+  margin: var(--sp-3) 0 var(--sp-5);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.btn-google {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--sp-4);
+  background: #ffffff;
+  color: #1f1f1f;
+  border: 1px solid #747775;
+  border-radius: var(--radius-sm);
   font-family: inherit;
   font-size: 0.95rem;
-  padding: 0.55rem 1.4rem;
-}
-
-.form-error {
-  background: #f6e0dc;
-  border-left: 3px solid var(--red);
-  color: var(--red);
-  font-size: 0.92rem;
   font-weight: 600;
-  padding: 0.6rem 0.9rem;
-  border-radius: 0 6px 6px 0;
-  margin: 0 0 1rem;
-  max-width: 460px;
-}
-
-/* 폼 아래의 "계정이 없나요? 회원가입" 줄 */
-.form-foot {
-  margin-top: 1.2rem;
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-
-.form-foot a {
-  color: var(--accent);
-}
-
-/* ---- 답변 ---- */
-.answer-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-}
-
-.answer {
-  background: var(--item);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0.9rem 1rem;
-}
-
-/* 채택된 답변은 테두리로 구분 */
-.answer.accepted {
-  border-color: var(--green);
-  border-left-width: 3px;
-}
-
-.answer-head {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  margin-bottom: 0.4rem;
-}
-
-.answer-date {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-
-.answer-body {
-  margin: 0;
-  white-space: pre-wrap;
-}
-
-.chip {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  padding: 0.05rem 0.4rem;
-}
-
-.chip-ok {
-  color: #fff;
-  background: var(--green);
-  border-color: var(--green);
-}
-
-.accept-form {
-  margin-top: 0.6rem;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.btn-accept {
-  background: var(--green);
-  color: #fff;
-  border: 0;
-  border-radius: 6px;
-  padding: 0.35rem 0.9rem;
-  font-family: inherit;
-  font-size: 0.85rem;
   cursor: pointer;
+  transition: background var(--t-fast) var(--ease);
 }
 
-.btn-accept:hover {
-  filter: brightness(1.1);
+.btn-google:hover {
+  background: #f2f2f2;
 }
 
-.answer-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 0.5rem;
+.hint {
+  margin: var(--sp-3) 0 0;
+  font-size: 0.83rem;
+  color: var(--muted);
 }
 
-/* 기여 유형 옆의 점수 표시 */
-.pts {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--accent);
-}
-
-/* ---- 랭킹 ---- */
+/* ============================================================
+   랭킹
+   ============================================================ */
 .rank-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--sp-2);
 }
 
 .rank-row {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
-  padding: 0.6rem 1rem;
-  background: var(--item);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
+/* 상위 3명은 숫자를 강조 — 색만이 아니라 굵기와 배경으로도 */
 .rank-no {
   flex: none;
-  width: 1.8rem;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: 0.85rem;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .rank-no.top {
-  color: var(--accent);
+  background: var(--score-soft);
+  color: var(--score);
   font-weight: 700;
 }
 
 .rank-who {
   flex: 1;
   min-width: 0;
+  font-size: 0.95rem;
 }
 
 .rank-pts {
+  font-family: var(--mono);
   font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--score);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-/* ---- 내 활동 ---- */
+/* ============================================================
+   내 활동
+   ============================================================ */
 .score-big {
-  font-size: 1.3rem;
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  font-family: var(--mono);
+  font-size: 1.5rem;
   font-weight: 700;
-  color: var(--accent);
-  white-space: nowrap;
+  color: var(--score);
+  font-variant-numeric: tabular-nums;
 }
 
-.sec-title {
-  font-size: 1.05rem;
-  margin: 1.8rem 0 0.6rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid var(--line);
+.score-big span {
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .mini-list {
@@ -541,99 +1014,103 @@ h1 {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
 }
 
 .mini-list li {
   display: flex;
   align-items: baseline;
-  gap: 1rem;
+  gap: var(--sp-4);
   flex-wrap: wrap;
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.93rem;
+}
+
+.mini-list li:last-child {
+  border-bottom: 0;
 }
 
 .mini-list a {
   color: var(--ink);
+  text-decoration: none;
+}
+
+.mini-list a:hover {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 .mini-meta {
   margin-left: auto;
-  font-size: 0.83rem;
+  font-size: 0.82rem;
   color: var(--muted);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ---- 에러 화면 ---- */
+/* ============================================================
+   에러 화면
+   ============================================================ */
 .err-detail {
-  background: var(--item);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 0.8rem;
-  font-size: 0.85rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-3);
+  font-family: var(--mono);
+  font-size: 0.82rem;
   overflow-x: auto;
   white-space: pre-wrap;
+  color: var(--ink-2);
 }
 
-/* ---- 구글(학교 계정) 로그인 ---- */
-.login-box {
-  max-width: 420px;
-  margin: 1rem auto 2rem;
-  text-align: center;
+/* ============================================================
+   작은 화면
+   ============================================================ */
+@media (max-width: 640px) {
+  .container {
+    padding: var(--sp-5) var(--sp-3) var(--sp-6);
+  }
+
+  .header-inner {
+    padding: var(--sp-2) var(--sp-3);
+    gap: var(--sp-2);
+  }
+
+  .site-nav {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+    gap: 0;
+  }
+
+  .site-nav a,
+  .linkbtn {
+    padding: 0 var(--sp-2);
+    font-size: 0.85rem;
+  }
+
+  .whoami {
+    order: -1;
+    margin-left: auto;
+  }
+
+  h1 {
+    font-size: 1.3rem;
+  }
+
+  .mini-meta {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 
-.login-lead {
-  color: var(--muted);
-  font-size: 0.93rem;
-  margin: 0.5rem 0 1.5rem;
-}
-
-.login-box .form-error,
-.login-box .btn-google {
-  max-width: none;
-}
-
-.btn-google {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  width: 100%;
-  max-width: 460px;
-  justify-content: center;
-  padding: 0.65rem 1rem;
-  background: #fff;
-  color: #1f1f1f;
-  border: 1px solid #747775;
-  border-radius: 6px;
-  font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-google:hover {
-  background: #f2f2f2;
-}
-
-.hint {
-  margin: 0.5rem 0 0;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-/* "또는" 구분선 */
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  max-width: 460px;
-  margin: 1.5rem 0;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.divider::before,
-.divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--line);
+/* ───────────────────────────────────────────
+   검증용 표 (app/test). 좁은 화면에서 표가 넘칠 때
+   화면 전체가 좌우로 밀리지 않도록 표만 스크롤시킨다.
+   ─────────────────────────────────────────── */
+.tablewrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
 }

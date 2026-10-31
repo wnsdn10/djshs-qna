@@ -1,43 +1,59 @@
 // app/questions/_components/QuestionCard.tsx
 //
-// 카드 하나의 모양. 카드 디자인을 고칠 일이 생기면 이 파일만 고치면 된다.
-// 순수 HTML로 만들었다면 목록을 그리는 코드 안에 문자열로 섞여 있었을 것이다.
-//
-// 'use client'가 없지만, 이 컴포넌트를 쓰는 QuestionList가 클라이언트라서
-// 이것도 클라이언트 쪽에서 실행된다. (경계는 부모가 정한다)
+// 목록에서 한 줄. 훑어보며 고르는 자리라 정보 순서가 중요하다.
+//   1) 상태 (왼쪽 색 막대 + 배지)  — 지금 도움이 필요한 질문인지
+//   2) 제목                        — 가장 크게
+//   3) 태그 · 기수 · 답변 수       — 작게, 한 줄로
 
 import Link from "next/link";
 import type { Question, QuestionStatus } from "@/lib/data/questions";
+import { IconLock, IconMessage } from "@/app/_components/icons";
 
 const STATUS_LABEL: Record<QuestionStatus, string> = {
-  unanswered: "미답변",
+  unanswered: "답변 기다리는 중",
   answered: "답변 있음",
   resolved: "해결됨",
 };
 
 export default function QuestionCard({ question }: { question: Question }) {
   return (
-    <Link href={`/questions/${question.id}`} className="q-card">
-      <span className={`badge badge-${question.status}`}>
-        {STATUS_LABEL[question.status]}
-      </span>
+    <Link
+      href={`/questions/${question.id}`}
+      className="q-card"
+      data-status={question.status}
+    >
+      <div className="q-card-title">{question.title}</div>
 
-      <div className="q-card-main">
-        <div className="q-card-title">
-          {question.title}
-          {/* 선배에게만 공개인 질문 표시. 실제로 걸러내는 건 8차시 RLS에서 */}
-          {question.visibility === "seniors" && (
-            <span className="lock">선배 전용</span>
-          )}
-        </div>
-        <div className="q-card-tags">
-          {question.tags.map((t) => `#${t}`).join(" ")}
-        </div>
-      </div>
+      <div className="q-card-row">
+        {/* 상태는 색 막대(왼쪽)와 글자 배지로 두 번 알린다.
+            색만으로 구분하면 색각 이상인 사람이 읽을 수 없다. */}
+        <span className={`badge badge-${question.status}`}>
+          {STATUS_LABEL[question.status]}
+        </span>
 
-      <div className="q-card-meta">
-        {/* 계획서의 익명 원칙: 이름 없이 기수만 보인다 */}
-        {question.authorCohort}기 작성 · 답변 {question.answerCount}
+        {question.visibility === "seniors" && (
+          <span className="lock">
+            <IconLock size={12} />
+            선배 전용
+          </span>
+        )}
+
+        <span className="q-card-tags">
+          {question.tags.map((t) => (
+            <span key={t} className="tag">
+              #{t}
+            </span>
+          ))}
+        </span>
+
+        {/* 계획서의 익명 원칙: 이름 없이 기수만 */}
+        <span style={{ marginLeft: "auto", display: "inline-flex", gap: "0.75rem" }}>
+          <span>{question.authorCohort}기</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <IconMessage size={13} />
+            {question.answerCount}
+          </span>
+        </span>
       </div>
     </Link>
   );

@@ -1,20 +1,17 @@
 "use client";
 //
 // ↑ 이 한 줄이 "여기서부터는 브라우저에서 실행된다"는 경계 표시다.
+//   useState는 사용자의 클릭에 반응해 화면을 다시 그리는 기능인데,
+//   그건 브라우저에서만 할 수 있는 일이다.
 //
-// 왜 필요한가: useState는 사용자의 클릭에 반응해 화면을 다시 그리는 기능인데,
-// 그건 브라우저에서만 할 수 있는 일이다. 서버는 HTML을 한 번 만들어 보내면 끝이라
-// 그 뒤에 일어나는 클릭을 알지 못한다.
-//
-// ★ 중요: 'use client'는 파일마다 붙이는 게 아니라 "경계"를 표시하는 것이다.
+// ★ 'use client'는 파일마다 붙이는 게 아니라 "경계"를 표시하는 것이다.
 //   이 파일이 불러 쓰는 QuestionCard도 자동으로 클라이언트 쪽이 된다.
-//   그래서 QuestionCard.tsx에는 'use client'가 없다.
 
 import { useState } from "react";
 import type { Question } from "@/lib/data/questions";
 import QuestionCard from "./QuestionCard";
+import { IconSearch, IconInbox } from "@/app/_components/icons";
 
-// 지금은 과목을 직접 적어둔다. 나중에 DB에서 뽑아 쓸 수도 있다.
 const TAGS = ["전체", "수학", "물리", "화학", "생명", "정보", "기타"];
 
 export default function QuestionList({ questions }: { questions: Question[] }) {
@@ -28,22 +25,30 @@ export default function QuestionList({ questions }: { questions: Question[] }) {
     return matchTag && matchKeyword;
   });
 
+  const isFiltering = keyword.trim() !== "" || tag !== "전체";
+
   return (
     <>
-      <input
-        className="search"
-        type="text"
-        placeholder="검색어를 입력하세요"
-        value={keyword}
-        onChange={(e) => setKeyword(e.target.value)}
-      />
+      <div className="search-wrap">
+        <IconSearch size={16} />
+        <input
+          className="search"
+          type="search"
+          placeholder="제목으로 검색"
+          aria-label="질문 제목 검색"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+        />
+      </div>
 
-      <div className="tag-filter">
+      {/* 과목 필터. 지금 무엇이 선택됐는지 스크린 리더에도 알린다. */}
+      <div className="tag-filter" role="group" aria-label="과목 필터">
         {TAGS.map((t) => (
           <button
             key={t}
             type="button"
             className={t === tag ? "tag-btn on" : "tag-btn"}
+            aria-pressed={t === tag}
             onClick={() => setTag(t)}
           >
             {t}
@@ -51,13 +56,31 @@ export default function QuestionList({ questions }: { questions: Question[] }) {
         ))}
       </div>
 
-      <div className="q-list">
-        {filtered.length === 0 ? (
-          <p className="empty">조건에 맞는 질문이 없습니다.</p>
-        ) : (
-          filtered.map((q) => <QuestionCard key={q.id} question={q} />)
-        )}
-      </div>
+      {filtered.length === 0 ? (
+        // 빈 화면에 "없습니다" 한 줄만 두면 막다른 길처럼 느껴진다.
+        // 왜 비었는지와 다음에 할 일을 같이 보여준다.
+        <div className="empty-box">
+          <IconInbox size={32} />
+          {isFiltering ? (
+            <p>
+              조건에 맞는 질문이 없습니다.
+              <br />
+              검색어를 지우거나 다른 과목을 눌러 보세요.
+            </p>
+          ) : (
+            <p>
+              아직 올라온 질문이 없습니다.
+              <br />첫 질문을 올려 보세요.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="q-list">
+          {filtered.map((q) => (
+            <QuestionCard key={q.id} question={q} />
+          ))}
+        </div>
+      )}
     </>
   );
 }

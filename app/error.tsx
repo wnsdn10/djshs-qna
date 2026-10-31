@@ -4,9 +4,8 @@
 //
 // 화면을 그리다 에러가 났을 때 보여줄 화면.
 // 'use client'가 필요하다 — 다시 시도 버튼이 동작해야 하기 때문이다.
-//
-// 이게 없으면 Next.js의 기본 에러 화면("A server error occurred")이 나온다.
-// 사용자 입장에서 무엇을 해야 할지 알 수 없는 화면이다.
+
+import { IconAlert } from "@/app/_components/icons";
 
 export default function Error({
   error,
@@ -16,10 +15,13 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <div>
-      <h1>화면을 불러오지 못했습니다</h1>
-      <p className="empty">
-        잠시 후 다시 시도해 주세요. 계속 같은 문제가 생기면 알려주세요.
+    <div className="empty-box" style={{ borderStyle: "solid" }}>
+      <IconAlert size={32} />
+      <h1 style={{ fontSize: "1.2rem" }}>화면을 불러오지 못했습니다</h1>
+      <p>
+        잠시 후 다시 시도해 주세요.
+        <br />
+        계속 같은 문제가 생기면 알려주세요.
       </p>
 
       {/* 개발 중에만 원인을 보여준다.

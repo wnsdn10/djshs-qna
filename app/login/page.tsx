@@ -1,9 +1,7 @@
 // app/login/page.tsx  →  주소: /login
-//
-// 로그인 방법이 구글 하나뿐이라 화면도 단순하다.
-// 회원가입 화면이 따로 없다 — 처음 누르는 사람은 그 자리에서 계정이 만들어진다.
 
 import GoogleLoginButton from "@/app/_components/GoogleLoginButton";
+import { IconAlert } from "@/app/_components/icons";
 
 const ERROR_MESSAGE: Record<string, string> = {
   oauth: "로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
@@ -19,25 +17,23 @@ export default async function LoginPage({
 
   return (
     <div className="login-box">
-      <h1>로그인</h1>
+      <h1>상호 협력 학습 지원 시스템</h1>
       <p className="login-lead">
         학교 구글 계정으로 들어올 수 있습니다.
         <br />
         처음이라면 누르는 순간 가입됩니다.
       </p>
 
-      {/* 계획서 스케치의 빨간 글씨 자리 */}
       {error && (
-        <p className="form-error">
+        <p className="form-error" role="alert" style={{ textAlign: "left" }}>
+          <IconAlert size={16} />
           {ERROR_MESSAGE[error] ?? "로그인하지 못했습니다."}
         </p>
       )}
 
       <GoogleLoginButton />
 
-      <p className="hint">
-        <strong>@djshs.djsch.kr</strong> 계정만 로그인할 수 있습니다.
-      </p>
+      <p className="hint">@djshs.djsch.kr 계정만 로그인할 수 있습니다.</p>
     </div>
   );
 }

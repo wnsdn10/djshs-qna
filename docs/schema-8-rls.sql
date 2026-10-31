@@ -25,6 +25,7 @@ drop policy if exists "임시: 누구나 쓰기" on public.questions;
 -- ★ 기수는 숫자가 작을수록 선배다. 42기가 43기의 선배.
 --   그래서 "내 기수 < 작성자 기수"가 "내가 선배"라는 뜻이 된다.
 --   부등호 방향을 반대로 쓰면 후배에게 열리는 정반대 결과가 되므로 주의.
+drop policy if exists "questions_select" on public.questions;
 create policy "questions_select"
   on public.questions for select
   to authenticated
@@ -41,6 +42,7 @@ create policy "questions_select"
 
 -- ---------- 질문 쓰기 ----------
 -- author_id를 남의 것으로 적어 보내면 거부된다.
+drop policy if exists "questions_insert_own" on public.questions;
 create policy "questions_insert_own"
   on public.questions for insert
   to authenticated
@@ -48,6 +50,7 @@ create policy "questions_insert_own"
 
 -- ---------- 질문 수정 ----------
 -- 본인 글만. (답변 수·상태는 트리거가 security definer로 바꾸므로 이 정책과 무관)
+drop policy if exists "questions_update_own" on public.questions;
 create policy "questions_update_own"
   on public.questions for update
   to authenticated

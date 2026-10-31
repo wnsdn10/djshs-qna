@@ -1,35 +1,44 @@
 // app/questions/page.tsx  →  주소: /questions
 //
 // 서버 컴포넌트. 데이터를 가져와서 화면에 넘겨주는 일만 한다.
-// 'use client'가 없으므로 이 코드는 서버에서 실행된다.
 
 import Link from "next/link";
 import { getQuestions } from "@/lib/data/questions";
 import QuestionList from "./_components/QuestionList";
+import { IconPlus } from "@/app/_components/icons";
+import { requireUser } from "@/lib/auth";
 
-// ★ 5차시에 추가
-//   이 화면은 접속할 때마다 DB를 다시 읽어야 한다.
-//   이 줄이 없으면 Next.js가 "내용이 변할 일 없는 페이지"로 판단해
-//   빌드할 때 HTML을 만들어 굳혀버린다. 그러면 새 질문을 등록해도
-//   배포본에서는 목록이 그대로다. (4차시 끝에 겪은 바로 그 현상)
+// 접속할 때마다 DB를 다시 읽는다 (5차시 참고)
 export const dynamic = "force-dynamic";
 
 export default async function QuestionsPage() {
-  // 데이터를 가져오는 방법은 여기서 몰라도 된다. 함수만 부른다.
-  // 5차시에 이 함수 안이 Supabase 조회로 바뀌었지만 이 줄은 그대로다.
+  // ★ 교내 시스템이므로 목록 자체가 로그인한 사람에게만 보여야 한다.
+  //    RLS는 "선배에게만" 질문을 가려주지만, 전체 공개 질문은 로그인 없이도
+  //    읽힌다. DB 규칙과 화면 규칙을 같은 기준으로 맞춘다.
+  await requireUser();
+
   const questions = await getQuestions();
+
+  const waiting = questions.filter((q) => q.answerCount === 0).length;
 
   return (
     <>
       <div className="page-head">
-        <h1>질문 목록</h1>
+        <h1>질문</h1>
         <Link href="/questions/new" className="btn">
-          + 질문하기
+          <IconPlus size={16} />
+          질문하기
         </Link>
       </div>
 
-      {/* 필터는 사용자의 클릭에 반응해야 해서 클라이언트 컴포넌트다.
-          서버에서 가져온 데이터를 props로 넘겨준다. */}
+      {/* 정렬 규칙을 화면에도 적어둔다.
+          "왜 이 순서지?"를 사용자가 추측하게 두지 않는다. */}
+      <p className="lead">
+        {waiting > 0
+          ? `답변을 기다리는 질문 ${waiting}개가 위에 있습니다.`
+          : "모든 질문에 답변이 달렸습니다."}
+      </p>
+
       <QuestionList questions={questions} />
     </>
   );
