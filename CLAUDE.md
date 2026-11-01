@@ -134,8 +134,12 @@ lib/
     ranking.ts                getOverallRanking, getSubjectRanking, getMy*
 docs/
   schema.sql  schema-6-auth.sql  schema-7-answers.sql  schema-8-rls.sql  schema-9-ai-judge.sql
+  schema-10-privacy.sql
+app/admin/page.tsx            관리자 화면 (requireAdmin) — 전체 학생 점수·활동
+app/admin/users/[id]/page.tsx 학생 한 명의 질문·답변(AI 판정)·점수 내역
+lib/data/admin.ts             관리자용 조회 (secret 키) — /admin 에서만 부를 것
 lib/ai/judge.ts               Gemini 답변 유형 판정 (fetch, Interactions API)
-lib/supabase/admin.ts         secret 키 클라이언트 — createAnswer() 한 곳에서만
+lib/supabase/admin.ts         secret 키 클라이언트 — createAnswer()와 lib/data/admin.ts 에서만
 design-system/djshs-qna/MASTER.md   ui-ux-pro-max 추천 중 채택·거절 근거
 ROADMAP.md                    8차시 전체 계획 + 에러 사례 모음 (785줄 이상)
 ```
@@ -172,6 +176,11 @@ ROADMAP.md                    8차시 전체 계획 + 에러 사례 모음 (785�
   secret 키로 저장. 최종 = min(본인 선택, AI 판정), AI 실패 시 info. 같은 규칙이 DB check 제약에도 있음.
   secret 키는 RLS를 건너뛰므로 `author_id`는 반드시 `getCurrentUser()`에서, 질문 접근권은 `getQuestion()`(RLS)으로 확인
 - 채택 시 질문 작성자가 바꿀 수 있는 칸은 `is_accepted` 하나 (열 단위 권한, schema-9)
+- 관리자: `lib/auth.ts`의 `ADMIN_EMAILS`. 판정은 **인증 이메일(`user.email`)** 로 한다 — profiles.email 아님.
+  `/admin`은 `requireAdmin()`(아니면 404)을 데이터 조회보다 **먼저** 통과해야 한다
+- 프로필(schema-10): 학생은 profiles를 **수정할 수 없다** (전에는 자기 cohort·total_score를 고칠 수 있었음 —
+  시험 DB에서 cohort=1, 점수 9999 저장 재현). 남의 email·student_no는 읽을 수 없다 (열 단위 select 권한)
+- 점수 내역(schema-10): score_logs는 본인 것만. `subject_ranking()`은 그래서 security definer
 - 채택은 되돌릴 수 없다 (RLS `with check (is_accepted ...)`, schema-9). 풀었다 다시 채택하면
   트리거 ②가 +5를 반복 적립하던 구멍 — 시험 DB에서 3번 반복에 9→29점 확인 후 막음
 
@@ -193,25 +202,21 @@ ROADMAP.md                    8차시 전체 계획 + 에러 사례 모음 (785�
 
 ## 🔴 지금 당장 해야 할 일 (미완료)
 
-### 1. `docs/schema-9-ai-judge.sql` 실행 + 환경변수 3개 — 최우선
+### 1. `docs/schema-10-privacy.sql` 실행 — 최우선
 
-schema-8은 2026-10-31에 실행 완료.
+schema-8은 10-31 실행 완료. schema-9는 실행했는지 아직 확인 못 함. **schema-10은 아직.**
+지금 DB는 학생이 자기 profiles 행의 cohort·total_score를 고칠 수 있다 (선배 전용·랭킹 무력화).
 
-9차시 코드는 **schema-9를 실행하기 전에 배포하면 답변 등록이 깨진다** (`claimed_type` 칸이 없음).
-순서: 환경변수 → SQL 실행 → 빌드 → 푸시.
+10차시 코드(`getCurrentUser`가 email·student_no를 profiles에서 안 읽음)는 schema-10 전에 배포해도 동작한다.
+반대로 schema-10을 먼저 실행하고 **옛 코드**가 배포돼 있으면 `select email` 때문에 로그인 사용자 조회가 깨진다.
+순서: 빌드 → 푸시(배포 완료 확인) → SQL 실행.
 
-| 변수 | 어디서 | 비고 |
-|---|---|---|
-| `SUPABASE_SECRET_KEY` | Supabase → Project Settings → API Keys → secret | **NEXT_PUBLIC_ 금지** |
-| `GEMINI_API_KEY` | Google AI Studio | |
-| `GEMINI_MODEL` (선택) | 없으면 `gemini-3.5-flash-lite` | 모델 종료되면 이것만 바꾸면 됨 |
+schema-10도 로컬 Postgres 16에서 7·8·9·10 순서로 검증함: 프로필 수정 거부, 남의 email 읽기 거부,
+랭킹 열은 읽힘, 남의 score_logs 0줄, subject_ranking은 전체 합계, 점수 트리거 정상.
 
-키 값은 사용자가 직접 입력한다 (Claude는 키를 보거나 입력하지 않는다).
-
-schema-9는 로컬 Postgres 16에서 7·8·9 순서로 실행해 검증함: 학생 직접 insert 거부,
-제약 3개가 잘못된 유형 거부, 질문 작성자는 is_accepted만 수정 가능, 점수 3+1+5=9 정상.
-Gemini 실제 호출은 키가 없어 못 해봤다 — 응답 모양(`steps[].content[].text`)은 문서 기준.
-첫 답변 등록 때 서버 로그에 `[judgeAnswer]` 오류가 없는지 볼 것.
+환경변수: `SUPABASE_SECRET_KEY`, `GEMINI_API_KEY`, (선택) `GEMINI_MODEL`.
+키 값은 사용자가 직접 입력한다 (Claude는 키를 보거나 입력하지 않는다). Vercel은 Secret(Sensitive) 타입으로.
+Gemini 실제 호출은 아직 확인 못 함 — 첫 답변 등록 때 서버 로그 `[judgeAnswer]` 확인.
 
 ### 2. 커밋·푸시 안 된 변경
 
@@ -221,6 +226,11 @@ Gemini 실제 호출은 키가 없어 못 해봤다 — 응답 모양(`steps[].c
 ### 3. 남은 것
 
 - 다른 기수 계정으로 **선배 전용 질문 RLS 실제 검증**
+- 알려진 구멍 (미해결): `questions.author_id`가 학생에게 읽힌다. profiles(id, name)와 맞춰 보면
+  "이름 없이 기수만"인 질문의 작성자를 알아낼 수 있다. 막으려면 author_id 열 읽기를 막고
+  "내 질문인가"를 DB 함수/뷰로 판단해야 해서 질문 상세·내 활동 코드가 같이 바뀐다
+- 알려진 구멍 (미해결, 작음): `questions_update_own`도 칸 제한이 없다. 본인 질문의
+  answer_count·status·author_cohort를 고칠 수 있다. 앱에 질문 수정 기능이 없으니 schema-10처럼 update 회수로 막으면 됨
 - `ROADMAP.md`는 최신이지만 **HTML 아티팩트 버전이 6·7·8차시 + 성능 + 디자인만큼 뒤처져 있음**
 - 7차시 이해 확인 질문 2개가 아직 답 안 됨:
   - (a) 채택 트리거에서 `if new.is_accepted and not old.is_accepted`를 빼면 뭐가 깨지나?

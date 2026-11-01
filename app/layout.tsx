@@ -3,7 +3,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { logoutAction } from "@/lib/auth-actions";
 import { IconLogo } from "@/app/_components/icons";
 import NavLink from "@/app/_components/NavLink";
@@ -60,6 +60,9 @@ export default async function RootLayout({
               {user ? (
                 <>
                   <NavLink href="/me">내 활동</NavLink>
+                  {/* 관리자에게만 보인다. 메뉴를 숨기는 건 편의일 뿐이고,
+                      실제로 막는 건 /admin 화면의 requireAdmin()이다 */}
+                  {isAdmin(user) && <NavLink href="/admin">관리</NavLink>}
                   {/* 숫자만 덩그러니 있으면 무슨 숫자인지 모른다. 스크린 리더에는 "점"까지 읽히게 한다.
                       (aria-label은 <b>·<span> 같은 일반 요소에 쓰면 안 되는 속성이라 스크린 리더마다 무시하기도 한다.
                        그래서 화면에서만 숨긴 글자를 넣는 방법을 쓴다) */}

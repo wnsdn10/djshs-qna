@@ -1562,6 +1562,168 @@ a {
 }
 
 /* ============================================================
+   관리자 화면 (/admin) — 10차시
+   ============================================================ */
+
+/* 현황 숫자 타일. 좁으면 2칸, 넓으면 5칸이 한 줄에 */
+.stat-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sp-2);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.stat-num {
+  font-family: var(--mono);
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* AI 판정 실패가 있을 때. 진짜 문제라서 빨강을 쓰는 몇 안 되는 자리다 */
+.stat-warn {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.stat-warn .stat-num,
+.stat-warn .stat-label {
+  color: var(--danger);
+}
+
+/* 섹션 제목 바로 아래의 짧은 설명 — .lead는 위쪽 여백이 음수라 제목에 붙는다 */
+.lead-tight {
+  margin-top: calc(-1 * var(--sp-2));
+}
+
+.admin-users {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* 한 줄 전체가 링크.
+   넓은 화면:  [이름·이메일] [활동 수] [점수     ]
+                                       [최근 로그인]
+   좁은 화면:  [이름·이메일        ] [점수]
+               [활동 수                  ]
+               [최근 로그인              ]               */
+.admin-user {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  grid-template-areas:
+    "main stats score"
+    "main stats seen";
+  align-items: center;
+  gap: 2px var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+
+.admin-user:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.admin-user-main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-user-name {
+  font-weight: 600;
+}
+
+/* 이메일은 길어서 칸을 넘치면 말줄임 */
+.admin-user-email {
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-user-stats {
+  grid-area: stats;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  font-size: 0.85rem;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-user-score {
+  grid-area: score;
+  justify-self: end;
+}
+
+.admin-user-seen {
+  grid-area: seen;
+  justify-self: end;
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 최근 점수 기록의 질문 제목 링크.
+   .mini-list a 가 글자색을 정하므로, 그보다 구체적인 선택자로 덮는다 (!important 대신) */
+.mini-list a.admin-log-q {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.85rem;
+  color: var(--ink-2);
+}
+
+/* 작은 화면: 위 그림의 "좁은 화면" 배치 */
+@media (max-width: 640px) {
+  .admin-user {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "main  score"
+      "stats stats"
+      "seen  seen";
+    gap: var(--sp-1) var(--sp-3);
+  }
+
+  .admin-user-seen {
+    justify-self: start;
+  }
+}
+
+/* ============================================================
    작은 화면
    ============================================================ */
 @media (max-width: 640px) {
