@@ -31,6 +31,17 @@ export const CONTRIB_LABEL: Record<ContribType, string> = {
   full: "전체 답변",
 };
 
+/**
+ * 기여 유형마다 "어떤 답변이 여기에 해당하는지" 한 줄 설명.
+ * 답변 폼과 메인 화면 두 곳에서 쓰므로 여기 한 곳에 둔다.
+ * (각 화면에 따로 적어두면 한쪽만 고쳐지는 일이 생긴다)
+ */
+export const CONTRIB_HELP: Record<ContribType, string> = {
+  info: "참고할 자료나 링크를 알려줌",
+  direction: "어디를 보면 될지 방향을 짚어줌",
+  full: "질문을 끝까지 해결해줌",
+};
+
 /** 화면에 표시할 점수. 실제 계산은 DB의 contrib_points() 함수가 한다. */
 export const CONTRIB_POINTS: Record<ContribType, number> = {
   info: 1,

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { logoutAction } from "@/lib/auth-actions";
 import { IconLogo } from "@/app/_components/icons";
+import NavLink from "@/app/_components/NavLink";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -44,7 +45,9 @@ export default async function RootLayout({
 
         <header className="site-header">
           <div className="header-inner">
-            <Link href="/questions" className="logo">
+            {/* 로고는 메인 화면(/)으로 간다. 대부분의 사이트가 이렇게 하기 때문에
+                사용자는 "처음으로 돌아가려면 로고"를 이미 알고 있다. */}
+            <Link href="/" className="logo">
               <span className="logo-mark">
                 <IconLogo size={16} />
               </span>
@@ -52,14 +55,20 @@ export default async function RootLayout({
             </Link>
 
             <nav className="site-nav" aria-label="주요 메뉴">
-              <Link href="/questions">질문</Link>
-              <Link href="/ranking">랭킹</Link>
+              <NavLink href="/questions">질문</NavLink>
+              <NavLink href="/ranking">랭킹</NavLink>
               {user ? (
                 <>
-                  <Link href="/me">내 활동</Link>
+                  <NavLink href="/me">내 활동</NavLink>
+                  {/* 숫자만 덩그러니 있으면 무슨 숫자인지 모른다. 스크린 리더에는 "점"까지 읽히게 한다.
+                      (aria-label은 <b>·<span> 같은 일반 요소에 쓰면 안 되는 속성이라 스크린 리더마다 무시하기도 한다.
+                       그래서 화면에서만 숨긴 글자를 넣는 방법을 쓴다) */}
                   <span className="whoami">
                     {user.cohort}기 {user.name}
-                    <b>{user.totalScore}</b>
+                    <b>
+                      {user.totalScore}
+                      <span className="sr-only">점</span>
+                    </b>
                   </span>
                   {/* 로그아웃은 "무언가를 바꾸는 동작"이라 링크가 아니라 버튼이어야 한다.
                       링크는 주소만 눌러도 실행되므로 이런 데 쓰면 안 된다. */}
@@ -70,7 +79,7 @@ export default async function RootLayout({
                   </form>
                 </>
               ) : (
-                <Link href="/login">로그인</Link>
+                <NavLink href="/login">로그인</NavLink>
               )}
             </nav>
           </div>

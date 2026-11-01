@@ -25,14 +25,11 @@ function RankTable({ rows, meId }: { rows: RankRow[]; meId: string }) {
   return (
     <ol className="rank-list">
       {rows.map((r, i) => (
+        // 내 줄은 색을 바꿔 표시한다. 예전에는 style={{...}}로 색을 직접 넣었는데,
+        // "컴포넌트에 색을 직접 쓰지 않는다"는 규칙에 맞게 클래스로 옮겼다.
         <li
           key={r.userId}
-          className="rank-row"
-          style={
-            r.userId === meId
-              ? { borderColor: "var(--primary)", background: "var(--primary-soft)" }
-              : undefined
-          }
+          className={r.userId === meId ? "rank-row is-me" : "rank-row"}
         >
           <span className={i < 3 ? "rank-no top" : "rank-no"}>{i + 1}</span>
           <span className="rank-who">
@@ -72,10 +69,13 @@ export default async function RankingPage({
 
       {/* 과목 선택은 주소(?subject=물리)로 한다.
           링크를 공유할 수 있고, 새로고침해도 선택이 유지된다. */}
-      <div className="tag-filter">
+      {/* aria-current: 지금 선택된 과목을 스크린 리더에도 알린다.
+          (질문 목록의 필터는 버튼이라 aria-pressed, 여기는 링크라 aria-current를 쓴다) */}
+      <nav className="tag-filter" aria-label="과목 선택">
         <Link
           href="/ranking"
           className={picked === null ? "tag-btn on" : "tag-btn"}
+          aria-current={picked === null ? "page" : undefined}
         >
           전체
         </Link>
@@ -84,11 +84,12 @@ export default async function RankingPage({
             key={s}
             href={`/ranking?subject=${encodeURIComponent(s)}`}
             className={picked === s ? "tag-btn on" : "tag-btn"}
+            aria-current={picked === s ? "page" : undefined}
           >
             {s}
           </Link>
         ))}
-      </div>
+      </nav>
 
       <RankTable rows={rows} meId={me.id} />
     </>

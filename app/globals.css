@@ -7,8 +7,16 @@
      - 배경은 스케치의 남색 대신 밝은 중성색으로 바꿨다. Q&A는 긴 글을 읽는 서비스라
        어두운 배경에 본문이 길면 눈이 빨리 피로해진다.
      - 점수·명성에는 앰버를 따로 뒀다. 주색과 섞이지 않아야 "점수"가 한눈에 들어온다.
-     - 채택·해결은 초록, 미답변은 붉은색. 상태를 색만으로 구분하지 않고
-       글자와 모양(막대, 아이콘)도 함께 쓴다 — 색각 이상인 사람도 구분할 수 있어야 한다.
+     - 채택·해결은 초록, 답변 대기는 호박색(점수와 같은 계열), 빨강은 진짜 오류에만.
+       상태를 색만으로 구분하지 않고 글자와 모양(막대, 아이콘)도 함께 쓴다
+       — 색각 이상인 사람도 구분할 수 있어야 한다.
+
+   11차시 개편 (ui-ux-pro-max 점검 결과, 자세한 근거는 design-system/djshs-qna/MASTER.md)
+     - 메인 화면(/) 스타일 추가
+     - 터치 목표: 필터 버튼 36px → 44px, 채택 버튼 40px → 44px
+     - 글자 최소 12px: 배지·자물쇠 0.74rem(11.8px) → 0.75rem
+     - 다크 --success-soft 를 반투명(#11312220)에서 불투명 색으로
+     - 현재 페이지 표시(aria-current)에 스타일
    ============================================================ */
 
 :root {
@@ -85,7 +93,9 @@
     --primary-soft: #15343e;
 
     --success: #5fc98e;
-    --success-soft: #11312220;
+    /* 예전 값 #11312220 은 8자리 = 투명도 12.5%라 배경에 거의 녹아서 배지가 안 보였다.
+       불투명한 색으로 바꾸고, 글자색 --success 와의 대비를 계산해 확인했다. */
+    --success-soft: #153a28;
     --danger: #f0897e;
     --danger-soft: #3a1b18;
 
@@ -118,6 +128,11 @@ body {
   font-size: 16px;
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+  /* ★ 한글은 기본 설정이면 글자 단위로 줄이 바뀐다 ("붙 / 잡고", "자 / 료").
+     keep-all은 띄어쓰기 단위로만 줄을 바꾸게 해서 낱말이 쪼개지지 않는다.
+     대신 띄어쓰기 없는 긴 글(URL 등)이 칸을 넘칠 수 있어서 overflow-wrap으로 그때만 자른다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 /* 키보드로 이동할 때 지금 어디인지 반드시 보여야 한다.
@@ -171,6 +186,20 @@ a {
 }
 .skip-link:focus {
   left: 0;
+}
+
+/* 화면에서는 숨기고 스크린 리더에게만 읽히는 글자.
+   display:none 으로 숨기면 스크린 리더도 못 읽으므로, 1px 상자에 잘라 넣는 방식을 쓴다. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ============================================================
@@ -247,6 +276,15 @@ a {
 .linkbtn:hover {
   background: var(--surface-2);
   color: var(--ink);
+}
+
+/* 지금 보고 있는 메뉴. 색만 바꾸면 구분이 약하므로 굵기와 밑줄 막대를 함께 쓴다.
+   밑줄은 box-shadow(inset)로 그려서 높이가 변하지 않게 한다 — 눌러도 메뉴가 들썩이지 않는다. */
+.site-nav a[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--primary);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 
 /* 내 점수 — 숫자는 모노로 써야 자릿수가 바뀌어도 흔들리지 않는다 */
@@ -393,7 +431,8 @@ a {
 }
 
 .tag-btn {
-  min-height: 36px;
+  /* 36px → 44px. 손가락 끝이 대략 이 크기라 이보다 작으면 옆 버튼을 잘못 누른다 */
+  min-height: 44px;
   padding: 0 var(--sp-3);
   display: inline-flex;
   align-items: center;
@@ -490,6 +529,20 @@ a {
   gap: var(--sp-1);
 }
 
+/* 기수 · 답변 수 — 오른쪽 끝으로 민다 */
+.q-card-meta {
+  margin-left: auto;
+  display: inline-flex;
+  gap: var(--sp-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.q-card-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* ============================================================
    배지 · 칩
    ============================================================ */
@@ -497,7 +550,7 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.74rem;
+  font-size: 0.75rem; /* 12px. 이보다 작으면 휴대폰에서 읽기 어렵다 */
   font-weight: 600;
   padding: 2px 8px;
   border-radius: var(--radius-pill);
@@ -560,7 +613,7 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--ink-2);
   border: 1px solid var(--border-strong);
@@ -611,6 +664,11 @@ a {
   display: flex;
   align-items: baseline;
   gap: var(--sp-2);
+}
+
+/* 같은 화면에서 두 번째 이후 섹션 제목 위 간격 */
+.sec-title.sec-gap {
+  margin-top: var(--sp-6);
 }
 
 .sec-title .count {
@@ -698,7 +756,7 @@ a {
   background: var(--surface);
   color: var(--success);
   border-color: var(--success);
-  min-height: 40px;
+  min-height: 44px;
   font-size: 0.87rem;
 }
 
@@ -814,6 +872,41 @@ a {
   margin: 0;
 }
 
+/* 답변 폼의 기여 유형: 이름 + 점수 + 한 줄 설명을 세로로 쌓는다.
+   설명이 들어가서 버튼이 넓어지므로, 좁은 화면에선 한 줄에 하나씩 놓는다. */
+.choice-row-stack {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.choice.choice-stack {
+  align-items: flex-start;
+  padding: var(--sp-3);
+}
+
+.choice-stack input {
+  margin-top: 0.3rem;
+}
+
+.choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.choice-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.choice-help {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .pts {
   font-family: var(--mono);
   font-size: 0.78rem;
@@ -841,6 +934,10 @@ a {
   border-radius: var(--radius-sm);
   margin: 0 0 var(--sp-4);
   max-width: 34rem;
+}
+
+.login-box .form-error {
+  text-align: left;
 }
 
 .form-error svg {
@@ -876,6 +973,21 @@ a {
 .empty-box p {
   margin: 0;
   font-size: 0.92rem;
+}
+
+/* 화면 로드 실패 — 빈 상태와 모양은 같지만 실선 테두리와 빨강으로 "오류"임을 드러낸다 */
+.error-box {
+  border-style: solid;
+  border-color: var(--danger);
+}
+
+.error-box svg {
+  color: var(--danger);
+}
+
+.error-box h1 {
+  font-size: 1.2rem;
+  color: var(--ink);
 }
 
 /* ============================================================
@@ -931,6 +1043,19 @@ a {
   color: var(--muted);
 }
 
+.login-more {
+  margin: var(--sp-5) 0 0;
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.login-more a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
 /* ============================================================
    랭킹
    ============================================================ */
@@ -971,6 +1096,12 @@ a {
   background: var(--score-soft);
   color: var(--score);
   font-weight: 700;
+}
+
+/* 랭킹에서 내 줄 */
+.rank-row.is-me {
+  border-color: var(--primary);
+  background: var(--primary-soft);
 }
 
 .rank-who {
@@ -1064,6 +1195,330 @@ a {
 }
 
 /* ============================================================
+   메인 화면 (/)
+   패턴: Community/Forum Landing — 가치 제안 → 쓰는 법 → 점수 → 참여
+   움직이는 효과는 넣지 않았다. 정보를 읽는 화면이라 움직임이 도움이 안 된다.
+   ============================================================ */
+
+/* 큰 제목 위의 작은 소속 표시 */
+.eyebrow {
+  margin: 0 0 var(--sp-2);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.hero {
+  padding: var(--sp-5) 0 var(--sp-7);
+  border-bottom: 1px solid var(--border);
+}
+
+/* 제목만 크게 — Swiss 스타일은 크기 대비로 위계를 만든다 */
+.hero-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  max-width: 18ch;
+}
+
+.hero-lead {
+  margin: var(--sp-4) 0 var(--sp-5);
+  max-width: 36rem;
+  font-size: 1.05rem;
+  color: var(--ink-2);
+}
+
+/* 로그인 버튼은 폭 100%로 만들어져 있어서, 감싸는 쪽에서 최대 폭을 정한다 */
+.hero-cta {
+  max-width: 22rem;
+}
+
+.home-sec {
+  padding: var(--sp-7) 0 0;
+}
+
+.home-sec-title {
+  margin: 0 0 var(--sp-2);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.home-sec-lead {
+  margin: 0 0 var(--sp-5);
+  max-width: 40rem;
+  color: var(--ink-2);
+}
+
+/* 단계 제목 바로 아래 목록이 오는 경우 */
+.home-sec-title + .steps {
+  margin-top: var(--sp-4);
+}
+
+/* ---- 사용 방법 4단계 ---- */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* 넓으면 4칸, 좁아지면 알아서 2칸·1칸으로. 화면 크기마다 따로 적지 않아도 된다 */
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--sp-3);
+}
+
+.step {
+  position: relative;
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.step-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  color: var(--primary);
+  margin-bottom: var(--sp-3);
+}
+
+.step-no {
+  position: absolute;
+  top: var(--sp-4);
+  right: var(--sp-4);
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.step-title {
+  margin: 0 0 var(--sp-1);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.step-desc {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+/* ---- 점수표 ---- */
+.points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* 12rem: 휴대폰에서는 한 줄에 하나, 넓은 화면에서는 세 개가 나란히 */
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--sp-3);
+}
+
+.point-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* 점수 숫자는 호박색 + 모노 — 헤더·랭킹의 점수와 같은 모양이라 "이게 점수"라고 바로 읽힌다 */
+.point-num {
+  font-family: var(--mono);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--score);
+  font-variant-numeric: tabular-nums;
+}
+
+.point-name {
+  font-weight: 600;
+}
+
+.point-desc {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.points-note {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0 0;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--success-soft);
+  color: var(--success);
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+}
+
+.points-note svg {
+  flex: none;
+}
+
+/* ---- 선배 전용 안내 ---- */
+.callout {
+  display: flex;
+  gap: var(--sp-4);
+  align-items: flex-start;
+  padding: var(--sp-5);
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+
+.callout-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-2);
+}
+
+.callout-title {
+  margin: 0 0 var(--sp-1);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.callout-desc {
+  margin: 0;
+  max-width: 40rem;
+  color: var(--ink-2);
+  font-size: 0.92rem;
+}
+
+.home-final {
+  padding-bottom: var(--sp-5);
+}
+
+/* ---- 로그인 후 ---- */
+.member-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+/* 그리드 칸 안의 긴 제목이 칸을 밀어내지 않고 줄바꿈되게 한다 (그리드 항목의 기본 최소 폭은 "내용 길이"다) */
+.member-text {
+  min-width: 0;
+}
+
+.member-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+}
+
+/* 점수 카드 — 카드 전체가 링크라 누를 수 있는 곳이 넓다 */
+.score-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 11rem;
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+
+.score-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.score-card-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.score-card .score-big {
+  font-size: 2rem;
+}
+
+.score-card-more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: 0.85rem;
+  color: var(--primary);
+}
+
+/* 섹션 제목 + 오른쪽 "전체 보기" 링크 */
+.sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+.sec-head .sec-title {
+  margin: 0;
+}
+
+/* ---- 이용 방법 다시 보기 (<details>) ---- */
+.howto {
+  margin-top: var(--sp-7);
+  border-top: 1px solid var(--border);
+}
+
+.howto > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: var(--sp-3) 0;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+  list-style: none; /* 브라우저 기본 삼각형을 지우고 아이콘으로 대신한다 */
+}
+
+.howto > summary::-webkit-details-marker {
+  display: none;
+}
+
+.howto > summary:hover {
+  color: var(--primary);
+}
+
+.howto-chevron {
+  transition: transform var(--t) var(--ease);
+}
+
+.howto[open] .howto-chevron {
+  transform: rotate(180deg);
+}
+
+/* 펼친 안쪽은 첫 섹션 위 여백을 줄인다 */
+.howto .home-sec:first-of-type {
+  padding-top: var(--sp-4);
+}
+
+/* ============================================================
    작은 화면
    ============================================================ */
 @media (max-width: 640px) {
@@ -1101,6 +1556,40 @@ a {
   .mini-meta {
     margin-left: 0;
     width: 100%;
+  }
+
+  .hero {
+    padding: var(--sp-3) 0 var(--sp-6);
+  }
+
+  .hero-title {
+    font-size: 1.75rem;
+  }
+
+  .hero-cta {
+    max-width: none;
+  }
+
+  .home-sec {
+    padding-top: var(--sp-6);
+  }
+
+  /* 점수 카드를 제목 아래로 내린다. 좁은 화면에서 두 칸으로 나누면 둘 다 찌그러진다 */
+  .member-head {
+    grid-template-columns: 1fr;
+  }
+
+  .member-title {
+    font-size: 1.35rem;
+  }
+
+  /* 버튼 두 개를 반씩 — 엄지로 누르기 쉬운 크기 */
+  .member-actions > * {
+    flex: 1;
+  }
+
+  .callout {
+    padding: var(--sp-4);
   }
 }
 

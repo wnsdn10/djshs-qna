@@ -124,6 +124,44 @@ export async function getQuestions(): Promise<Question[]> {
   });
 }
 
+/**
+ * 메인 화면용: 답변을 기다리는 질문 몇 개와, 그런 질문이 전부 몇 개인지.
+ *
+ * getQuestions()로 전부 가져와서 앞의 3개만 잘라도 화면은 똑같이 나온다.
+ * 그래도 따로 만든 이유: 메인 화면은 "미리보기"라서 3개만 필요한데,
+ * 전부 가져오면 질문이 늘수록 쓰지도 않을 데이터를 매번 받아오게 된다.
+ *
+ * ★ { count: "exact" }
+ *   .limit(3)으로 행은 3개만 받지만, count에는 조건에 맞는 "전체" 개수가 담긴다.
+ *   한 번의 요청으로 "미리보기 3개"와 "총 N개"를 같이 얻는 방법이다.
+ *
+ * ★ 선배 전용 질문은 여기서 따로 거르지 않는다.
+ *   RLS(schema-8)가 "볼 수 없는 질문"을 DB 단계에서 이미 빼고 돌려주므로,
+ *   개수도 "내가 볼 수 있는 질문" 기준으로 세어진다.
+ */
+export async function getWaitingQuestions(
+  limit = 3
+): Promise<{ questions: Question[]; total: number }> {
+  const supabase = await createClient();
+
+  const { data, error, count } = await supabase
+    .from("questions")
+    .select("*", { count: "exact" })
+    .eq("answer_count", 0)
+    // 목록 화면과 같은 규칙: 오래 기다린 질문부터
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`답변 기다리는 질문을 불러오지 못했습니다: ${error.message}`);
+  }
+
+  return {
+    questions: (data as QuestionRow[]).map(toQuestion),
+    total: count ?? 0,
+  };
+}
+
 // id가 uuid 모양인지 검사하는 정규식
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

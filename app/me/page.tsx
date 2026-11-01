@@ -75,7 +75,7 @@ export default async function MePage() {
         </ul>
       )}
 
-      <h2 className="sec-title" style={{ marginTop: "var(--sp-6)" }}>
+      <h2 className="sec-title sec-gap">
         내가 쓴 답변 <span className="count">{answers.length}</span>
       </h2>
       {answers.length === 0 ? (
@@ -104,7 +104,7 @@ export default async function MePage() {
       {/* ★ 점수 내역이 있는 이유
           합계만 보여주면 "왜 이 점수지?"를 확인할 방법이 없다.
           score_logs에 한 줄씩 남겨두었기 때문에 이렇게 보여줄 수 있다. */}
-      <h2 className="sec-title" style={{ marginTop: "var(--sp-6)" }}>
+      <h2 className="sec-title sec-gap">
         점수 내역
       </h2>
       {logs.length === 0 ? (

@@ -47,10 +47,13 @@ export default function QuestionCard({ question }: { question: Question }) {
         </span>
 
         {/* 계획서의 익명 원칙: 이름 없이 기수만 */}
-        <span style={{ marginLeft: "auto", display: "inline-flex", gap: "0.75rem" }}>
+        {/* 인라인 style을 클래스로 옮겼다. 간격·정렬을 CSS 한 곳에서 관리하기 위해서다.
+            답변 수는 아이콘만 있으면 무슨 숫자인지 모르므로 화면에 안 보이는 글자로 "답변"을 붙인다. */}
+        <span className="q-card-meta">
           <span>{question.authorCohort}기</span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <span className="q-card-count">
             <IconMessage size={13} />
+            <span className="sr-only">답변</span>
             {question.answerCount}
           </span>
         </span>

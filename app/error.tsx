@@ -15,9 +15,10 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <div className="empty-box" style={{ borderStyle: "solid" }}>
+    // 진짜 오류이므로 빨강(--danger)을 쓰는 몇 안 되는 자리다
+    <div className="empty-box error-box" role="alert">
       <IconAlert size={32} />
-      <h1 style={{ fontSize: "1.2rem" }}>화면을 불러오지 못했습니다</h1>
+      <h1>화면을 불러오지 못했습니다</h1>
       <p>
         잠시 후 다시 시도해 주세요.
         <br />

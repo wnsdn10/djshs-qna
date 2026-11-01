@@ -66,6 +66,44 @@ export function IconArrowLeft({ size = 16, className }: Props) {
   );
 }
 
+export function IconArrowRight({ size = 16, className }: Props) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+/** 답변 쓰기 — 메인 화면 "사용 방법" 2단계 */
+export function IconPencil({ size = 16, className }: Props) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z" />
+      <path d="m13.5 6.5 4 4" />
+    </svg>
+  );
+}
+
+/** 점수·랭킹 — 메인 화면 "사용 방법" 4단계 */
+export function IconTrophy({ size = 16, className }: Props) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M8 4h8v5a4 4 0 0 1-8 0z" />
+      <path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4" />
+      <path d="M12 13v4M8.5 20h7M10 17h4" />
+    </svg>
+  );
+}
+
+/** 펼침 표시 — <details>의 열림/닫힘 */
+export function IconChevronDown({ size = 16, className }: Props) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 export function IconAlert({ size = 16, className }: Props) {
   return (
     <svg {...base(size)} className={className}>

@@ -7,17 +7,12 @@ import { addAnswerAction } from "../actions";
 import {
   CONTRIB_LABEL,
   CONTRIB_POINTS,
+  CONTRIB_HELP,
   ACCEPT_POINTS,
 } from "@/lib/data/answers";
 import type { ContribType } from "@/lib/data/answers";
 
 const TYPES: ContribType[] = ["info", "direction", "full"];
-
-const TYPE_HELP: Record<ContribType, string> = {
-  info: "참고할 자료나 링크를 알려줌",
-  direction: "어디를 보면 될지 방향을 짚어줌",
-  full: "질문을 끝까지 해결해줌",
-};
 
 export default function AnswerForm({ questionId }: { questionId: string }) {
   return (
@@ -40,17 +35,25 @@ export default function AnswerForm({ questionId }: { questionId: string }) {
           고른 유형에 따라 점수가 쌓이고, 질문자가 채택하면 {ACCEPT_POINTS}점이
           더해집니다.
         </p>
-        <div className="choice-row">
+        {/* ★ 설명을 title(마우스를 올리면 뜨는 말풍선)에서 화면에 보이는 글자로 옮겼다.
+            title은 휴대폰에서는 볼 방법이 없고, 키보드 사용자에게도 잘 안 보인다.
+            학생 대부분이 휴대폰으로 들어올 서비스라 "올려야 보이는 정보"는 없는 정보와 같다. */}
+        <div className="choice-row choice-row-stack">
           {TYPES.map((t, i) => (
-            <label key={t} className="choice" title={TYPE_HELP[t]}>
+            <label key={t} className="choice choice-stack">
               <input
                 type="radio"
                 name="contribType"
                 value={t}
                 defaultChecked={i === 0}
               />
-              {CONTRIB_LABEL[t]}
-              <span className="pts">+{CONTRIB_POINTS[t]}</span>
+              <span className="choice-text">
+                <span className="choice-name">
+                  {CONTRIB_LABEL[t]}
+                  <span className="pts">+{CONTRIB_POINTS[t]}</span>
+                </span>
+                <span className="choice-help">{CONTRIB_HELP[t]}</span>
+              </span>
             </label>
           ))}
         </div>
