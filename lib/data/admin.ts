@@ -320,3 +320,109 @@ export async function getAdminUserDetail(
     })),
   };
 }
+
+// ---------------------------------------------------------------
+// 최근 올라온 글 + 삭제 (11차시)
+// ---------------------------------------------------------------
+
+export type AdminRecentQuestion = {
+  id: string;
+  title: string;
+  who: string;
+  authorId: string | null;
+  visibility: string;
+  answerCount: number;
+  at: string;
+};
+
+/** 최근 질문. 이상한 글이 올라왔는지 관리자가 훑어보는 곳 */
+export async function getRecentQuestions(limit = 20): Promise<AdminRecentQuestion[]> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from("questions")
+    .select("id, title, visibility, answer_count, created_at, author_id, profiles(name, cohort)")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(`최근 질문: ${error.message}`);
+
+  return (data ?? []).map((r: Record<string, unknown>) => {
+    const prof = r.profiles as { name?: string; cohort?: number } | null;
+    return {
+      id: r.id as string,
+      title: r.title as string,
+      // 학생 화면에서 질문은 익명이지만, 관리자는 누가 썼는지 알아야 조치할 수 있다
+      who: prof ? `${prof.cohort ?? "?"}기 ${prof.name || "이름 없음"}` : "(알 수 없음)",
+      authorId: (r.author_id as string | null) ?? null,
+      visibility: r.visibility as string,
+      answerCount: (r.answer_count as number) ?? 0,
+      at: toKst(r.created_at as string) ?? "",
+    };
+  });
+}
+
+export type AdminRecentAnswer = {
+  id: string;
+  questionId: string;
+  questionTitle: string;
+  who: string;
+  authorId: string;
+  /** 목록용으로 앞부분만 */
+  excerpt: string;
+  contribType: ContribType;
+  at: string;
+};
+
+/** 최근 답변 */
+export async function getRecentAnswers(limit = 20): Promise<AdminRecentAnswer[]> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from("answers")
+    .select("id, question_id, author_id, body, contrib_type, created_at, profiles(name, cohort), questions(title)")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(`최근 답변: ${error.message}`);
+
+  return (data ?? []).map((r: Record<string, unknown>) => {
+    const prof = r.profiles as { name?: string; cohort?: number } | null;
+    const body = (r.body as string) ?? "";
+    return {
+      id: r.id as string,
+      questionId: r.question_id as string,
+      questionTitle: (r.questions as { title?: string } | null)?.title ?? "(삭제된 질문)",
+      who: prof ? `${prof.cohort ?? "?"}기 ${prof.name || "이름 없음"}` : "(알 수 없음)",
+      authorId: r.author_id as string,
+      excerpt: body.length > 80 ? body.slice(0, 80) + "…" : body,
+      contribType: r.contrib_type as ContribType,
+      at: toKst(r.created_at as string) ?? "",
+    };
+  });
+}
+
+/**
+ * 질문을 지운다. 그 질문의 답변도 같이 지워진다 (answers.question_id 가 on delete cascade).
+ *
+ * 점수 정리는 여기서 하지 않는다. 답변이 지워질 때마다 DB 트리거(schema-11의 on_answer_deleted)가
+ * 그 답변으로 받은 점수를 회수한다. "점수는 앱 코드에서 건드리지 않는다"는 7차시 원칙 그대로다.
+ */
+export async function adminDeleteQuestion(id: string): Promise<void> {
+  if (!UUID_RE.test(id)) throw new Error("잘못된 질문 id입니다.");
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("questions").delete().eq("id", id);
+
+  if (error) throw new Error(`질문을 지우지 못했습니다: ${error.message}`);
+}
+
+/** 답변을 지운다. 점수 회수·답변 수·질문 상태는 DB 트리거가 정리한다 */
+export async function adminDeleteAnswer(id: string): Promise<void> {
+  if (!UUID_RE.test(id)) throw new Error("잘못된 답변 id입니다.");
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("answers").delete().eq("id", id);
+
+  if (error) throw new Error(`답변을 지우지 못했습니다: ${error.message}`);
+}

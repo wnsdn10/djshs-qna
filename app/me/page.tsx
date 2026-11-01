@@ -8,6 +8,7 @@ import {
   getMyScoreLogs,
 } from "@/lib/data/ranking";
 import { IconInbox } from "@/app/_components/icons";
+import { signedPoints } from "@/lib/data/answers";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,9 @@ const REASON_LABEL: Record<string, string> = {
   direction: "방향 제시",
   full: "전체 답변",
   accepted: "답변 채택됨",
+  // 11차시: 관리자가 글을 지우면 그 글로 받은 점수가 음수 한 줄로 회수된다.
+  // 학생이 "왜 점수가 줄었지?"를 여기서 확인할 수 있다.
+  removed: "관리자가 삭제한 글의 점수 회수",
 };
 
 export default async function MePage() {
@@ -115,7 +119,7 @@ export default async function MePage() {
             <li key={l.id}>
               <span>{REASON_LABEL[l.reason] ?? l.reason}</span>
               <span className="mini-meta">
-                +{l.points}점 · {l.createdAt}
+                {signedPoints(l.points)}점 · {l.createdAt}
               </span>
             </li>
           ))}

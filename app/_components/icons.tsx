@@ -104,6 +104,16 @@ export function IconChevronDown({ size = 16, className }: Props) {
   );
 }
 
+/** 삭제 — 관리자 화면 (11차시) */
+export function IconTrash({ size = 16, className }: Props) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M4 7h16M10 11v6M14 11v6" />
+      <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  );
+}
+
 export function IconAlert({ size = 16, className }: Props) {
   return (
     <svg {...base(size)} className={className}>

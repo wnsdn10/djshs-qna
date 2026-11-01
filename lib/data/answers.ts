@@ -61,6 +61,15 @@ export const CONTRIB_POINTS: Record<ContribType, number> = {
 export const ACCEPT_POINTS = 5;
 
 /**
+ * 점수를 부호와 함께 표시한다. +8, −13
+ * 11차시에 삭제로 회수된 점수(음수)가 생기면서 필요해졌다. 그냥 "+{점수}"로 쓰면 "+-13"이 된다.
+ * 빼기 기호는 하이픈(-)이 아니라 수학 기호 −(U+2212)를 쓴다. 숫자와 폭이 맞아 줄이 덜 흔들린다.
+ */
+export function signedPoints(n: number): string {
+  return n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "0";
+}
+
+/**
  * 유형의 높낮이. DB의 contrib_rank() 와 같은 순서다.
  * 점수(1·3·8)로 비교하지 않는 이유: 점수표가 바뀌어도 "어느 유형이 더 높은가"는 그대로여야 한다.
  */

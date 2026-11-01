@@ -135,7 +135,9 @@ lib/
     ranking.ts                getOverallRanking, getSubjectRanking, getMy*
 docs/
   schema.sql  schema-6-auth.sql  schema-7-answers.sql  schema-8-rls.sql  schema-9-ai-judge.sql
-  schema-10-privacy.sql
+  schema-10-privacy.sql  schema-11-moderation.sql
+app/admin/actions.ts          관리자 삭제 Server Action — 첫 줄 requireAdmin() 필수
+app/_components/AdminDeleteButton.tsx  2단계 확인 삭제 버튼 (클라이언트)
 app/admin/page.tsx            관리자 화면 (requireAdmin) — 전체 학생 점수·활동
 app/admin/users/[id]/page.tsx 학생 한 명의 질문·답변(AI 판정)·점수 내역
 lib/data/admin.ts             관리자용 조회 (secret 키) — /admin 에서만 부를 것
@@ -182,6 +184,10 @@ ROADMAP.md                    8차시 전체 계획 + 에러 사례 모음 (785�
 - 프로필(schema-10): 학생은 profiles를 **수정할 수 없다** (전에는 자기 cohort·total_score를 고칠 수 있었음 —
   시험 DB에서 cohort=1, 점수 9999 저장 재현). 남의 email·student_no는 읽을 수 없다 (열 단위 select 권한)
 - 점수 내역(schema-10): score_logs는 본인 것만. `subject_ranking()`은 그래서 security definer
+- 삭제(schema-11): 학생은 질문·답변을 지울 수 없다(delete 회수). 관리자 action이 secret 키로 지운다.
+  답변이 지워지기 **직전(before)** 트리거가 그 답변으로 받은 점수 합계를 `removed` 음수 한 줄로 기록 →
+  total_score에서 빠짐. 답변 수·질문 상태(해결됨)도 되돌림. 질문 삭제는 cascade로 답변마다 같은 트리거.
+  after 트리거로 하면 FK의 set null(RI_ 트리거)이 먼저 돌아서 합계가 0 — 시험 DB에서 확인
 - 채택은 되돌릴 수 없다 (RLS `with check (is_accepted ...)`, schema-9). 풀었다 다시 채택하면
   트리거 ②가 +5를 반복 적립하던 구멍 — 시험 DB에서 3번 반복에 9→29점 확인 후 막음
 
@@ -203,15 +209,18 @@ ROADMAP.md                    8차시 전체 계획 + 에러 사례 모음 (785�
 
 ## 🔴 지금 당장 해야 할 일 (미완료)
 
-### 1. `docs/schema-10-privacy.sql` 실행 — 최우선
+### 1. `docs/schema-10-privacy.sql`, `schema-11-moderation.sql` 실행 — 최우선
 
-schema-8은 10-31 실행 완료. schema-9는 실행했는지 아직 확인 못 함. **schema-10은 아직.**
+schema-8은 10-31 실행 완료. schema-9는 실행했는지 아직 확인 못 함. **schema-10, 11은 아직.**
 지금 DB는 학생이 자기 profiles 행의 cohort·total_score를 고칠 수 있다 (선배 전용·랭킹 무력화).
 
 10차시 코드(`getCurrentUser`가 email·student_no를 profiles에서 안 읽음)는 schema-10 전에 배포해도 동작한다.
 반대로 schema-10을 먼저 실행하고 **옛 코드**가 배포돼 있으면 `select email` 때문에 로그인 사용자 조회가 깨진다.
-순서: 빌드 → 푸시(배포 완료 확인) → SQL 실행.
+순서: 빌드 → 푸시(배포 완료 확인) → SQL 실행 (9 → 10 → 11).
+schema-11 전에 관리자가 삭제하면 글은 지워지지만 점수 회수·답변 수 정리가 안 된다.
 
+schema-11은 7~11 순서로 검증: 채택된 답변 삭제 17→4점, 질문 통째 삭제 4→1점, 마지막 답변 삭제 시 unanswered,
+학생 삭제 거부, 두 번 실행 안전.
 schema-10도 로컬 Postgres 16에서 7·8·9·10 순서로 검증함: 프로필 수정 거부, 남의 email 읽기 거부,
 랭킹 열은 읽힘, 남의 score_logs 0줄, subject_ranking은 전체 합계, 점수 트리거 정상.
 
@@ -286,7 +295,7 @@ CSS는 잘못된 값을 **에러 없이 조용히 버린다.**
 | 청록 | `--primary` | 링크 · 버튼 · "답변 있음" |
 | 초록 | `--success` | "해결됨" · 채택된 답변 |
 | 호박 | `--score` | 점수 · "답변 기다리는 중" |
-| 빨강 | `--danger` | **진짜 오류일 때만** (입력 오류, 화면 로드 실패) |
+| 빨강 | `--danger` | **진짜 오류일 때만** (입력 오류, 화면 로드 실패) + 되돌릴 수 없는 삭제 확인 |
 
 "답변 기다리는 중"을 빨강으로 썼다가 호박색으로 바꿨다.
 답변이 없는 건 에러가 아니라 **점수를 받을 수 있는 자리**다.

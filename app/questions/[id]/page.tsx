@@ -11,7 +11,9 @@ import {
   CONTRIB_POINTS,
   ACCEPT_POINTS,
 } from "@/lib/data/answers";
-import { requireUser } from "@/lib/auth";
+import { requireUser, isAdmin } from "@/lib/auth";
+import { deleteQuestionAction, deleteAnswerAction } from "@/app/admin/actions";
+import AdminDeleteButton from "@/app/_components/AdminDeleteButton";
 import { acceptAnswerAction } from "./actions";
 import AnswerForm from "./_components/AnswerForm";
 import {
@@ -63,6 +65,9 @@ export default async function QuestionDetailPage({
   if (!question) notFound();
 
   const isQuestionAuthor = user.id === question.authorId;
+  // 관리자에게만 삭제 버튼을 그린다. 버튼을 숨기는 건 편의일 뿐이고,
+  // 실제로 막는 건 deleteQuestionAction/deleteAnswerAction 안의 requireAdmin()이다.
+  const admin = isAdmin(user);
   const hasAccepted = answers.some((a) => a.isAccepted);
 
   return (
@@ -100,6 +105,18 @@ export default async function QuestionDetailPage({
         <p className="q-meta">
           {question.authorCohort}기 · {question.createdAt}
         </p>
+
+        {/* from="question": 지우고 나면 이 주소는 없어지므로 목록으로 보낸다 */}
+        {admin && (
+          <div className="mod-actions mod-actions-start">
+            <AdminDeleteButton
+              action={deleteQuestionAction}
+              id={question.id}
+              what="질문"
+              from="question"
+            />
+          </div>
+        )}
       </div>
 
       <hr className="divider" />
@@ -161,6 +178,12 @@ export default async function QuestionDetailPage({
               <p className="answer-body">{a.body}</p>
 
               <AiNote answer={a} />
+
+              {admin && (
+                <div className="mod-actions">
+                  <AdminDeleteButton action={deleteAnswerAction} id={a.id} what="답변" />
+                </div>
+              )}
 
               {/* 채택 버튼은 질문을 쓴 사람에게만, 아직 채택된 답변이 없을 때만.
                   화면에서 숨기는 것과 별개로 DB의 RLS 정책도 같은 조건을 건다. */}

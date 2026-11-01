@@ -9,7 +9,9 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/auth";
 import { getAdminUserDetail } from "@/lib/data/admin";
-import { CONTRIB_LABEL } from "@/lib/data/answers";
+import { CONTRIB_LABEL, signedPoints } from "@/lib/data/answers";
+import { deleteQuestionAction, deleteAnswerAction } from "@/app/admin/actions";
+import AdminDeleteButton from "@/app/_components/AdminDeleteButton";
 import { IconArrowLeft, IconLock } from "@/app/_components/icons";
 
 export const metadata: Metadata = {
@@ -30,6 +32,7 @@ const REASON_LABEL: Record<string, string> = {
   direction: "방향 제시",
   full: "전체 답변",
   accepted: "채택됨",
+  removed: "관리자 삭제로 회수",
 };
 
 export default async function AdminUserPage({
@@ -90,6 +93,7 @@ export default async function AdminUserPage({
               <span className="mini-meta">
                 {STATUS_LABEL[q.status] ?? q.status} · 답변 {q.answerCount} · {q.createdAt}
               </span>
+              <AdminDeleteButton action={deleteQuestionAction} id={q.id} what="질문" />
             </li>
           ))}
         </ul>
@@ -129,6 +133,10 @@ export default async function AdminUserPage({
                     {a.aiType === null ? "판정을 받지 못함 (Gemini 실패)" : a.aiReason}
                   </p>
                 )}
+
+                <div className="mod-actions">
+                  <AdminDeleteButton action={deleteAnswerAction} id={a.id} what="답변" />
+                </div>
               </li>
             );
           })}
@@ -146,7 +154,7 @@ export default async function AdminUserPage({
             <li key={l.id}>
               <span>{REASON_LABEL[l.reason] ?? l.reason}</span>
               <span className="mini-meta">
-                +{l.points}점 · {l.at}
+                {signedPoints(l.points)}점 · {l.at}
               </span>
             </li>
           ))}

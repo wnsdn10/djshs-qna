@@ -1,6 +1,7 @@
 // app/admin/page.tsx  →  주소: /admin
 //
 // 관리자 화면. 가입한 학생 전체의 점수와 활동을 본다. (10차시)
+// 11차시: 최근 질문·답변을 훑어보고 이상한 글을 바로 지울 수 있게 했다.
 //
 // ★ 관리자(lib/auth.ts의 ADMIN_EMAILS)가 아니면 404가 뜬다.
 //   헤더의 "관리" 메뉴도 관리자에게만 보이지만, 메뉴를 숨기는 건 편의일 뿐이다.
@@ -9,8 +10,16 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/auth";
-import { getAdminUsers, getRecentScoreLogs } from "@/lib/data/admin";
-import { IconArrowRight } from "@/app/_components/icons";
+import {
+  getAdminUsers,
+  getRecentScoreLogs,
+  getRecentQuestions,
+  getRecentAnswers,
+} from "@/lib/data/admin";
+import { CONTRIB_LABEL, signedPoints } from "@/lib/data/answers";
+import { deleteQuestionAction, deleteAnswerAction } from "./actions";
+import AdminDeleteButton from "@/app/_components/AdminDeleteButton";
+import { IconArrowRight, IconLock } from "@/app/_components/icons";
 
 // 검색엔진이 이 주소를 목록에 올리지 않게 한다 (어차피 로그인이 필요하지만)
 export const metadata: Metadata = {
@@ -26,14 +35,17 @@ const REASON_LABEL: Record<string, string> = {
   direction: "방향 제시",
   full: "전체 답변",
   accepted: "채택됨",
+  removed: "관리자 삭제로 회수",
 };
 
 export default async function AdminPage() {
   await requireAdmin();
 
-  const [{ users, totals }, logs] = await Promise.all([
+  const [{ users, totals }, logs, recentQuestions, recentAnswers] = await Promise.all([
     getAdminUsers(),
     getRecentScoreLogs(30),
+    getRecentQuestions(15),
+    getRecentAnswers(15),
   ]);
 
   return (
@@ -69,6 +81,66 @@ export default async function AdminPage() {
           <span className="stat-label">AI 판정 실패</span>
         </li>
       </ul>
+
+      {/* ★ 최근 올라온 글을 학생 목록보다 위에 둔다.
+          관리자가 이 화면에 들어오는 가장 흔한 이유가 "이상한 글이 올라왔나"이기 때문이다. */}
+      <h2 className="sec-title sec-gap">최근 질문</h2>
+      {recentQuestions.length === 0 ? (
+        <p className="empty">올라온 질문이 없습니다.</p>
+      ) : (
+        <ul className="mini-list mod-list">
+          {recentQuestions.map((q) => (
+            <li key={q.id}>
+              <span className="mod-main">
+                <Link href={`/questions/${q.id}`}>{q.title}</Link>
+                <span className="mini-meta mod-meta">
+                  {q.authorId ? (
+                    <Link href={`/admin/users/${q.authorId}`}>
+                      {q.who}
+                    </Link>
+                  ) : (
+                    q.who
+                  )}
+                  {q.visibility === "seniors" && (
+                    <span className="lock">
+                      <IconLock size={12} />
+                      선배 전용
+                    </span>
+                  )}
+                  <span>답변 {q.answerCount}</span>
+                  <span>{q.at}</span>
+                </span>
+              </span>
+              <AdminDeleteButton action={deleteQuestionAction} id={q.id} what="질문" />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h2 className="sec-title sec-gap">최근 답변</h2>
+      {recentAnswers.length === 0 ? (
+        <p className="empty">올라온 답변이 없습니다.</p>
+      ) : (
+        <ul className="mini-list mod-list">
+          {recentAnswers.map((a) => (
+            <li key={a.id}>
+              <span className="mod-main">
+                {/* 답변 목록에서는 "무슨 내용인지"가 판단 기준이라 본문 앞부분을 보여준다 */}
+                <span className="mod-excerpt">{a.excerpt}</span>
+                <span className="mini-meta mod-meta">
+                  <Link href={`/admin/users/${a.authorId}`}>
+                    {a.who}
+                  </Link>
+                  <span>{CONTRIB_LABEL[a.contribType]}</span>
+                  <Link href={`/questions/${a.questionId}`}>{a.questionTitle}</Link>
+                  <span>{a.at}</span>
+                </span>
+              </span>
+              <AdminDeleteButton action={deleteAnswerAction} id={a.id} what="답변" />
+            </li>
+          ))}
+        </ul>
+      )}
 
       <h2 className="sec-title sec-gap">
         학생 <span className="count">{users.length}</span>
@@ -120,7 +192,7 @@ export default async function AdminPage() {
               <Link href={`/admin/users/${l.userId}`}>{l.who}</Link>
               <span>
                 {REASON_LABEL[l.reason] ?? l.reason}{" "}
-                <span className="pts">+{l.points}</span>
+                <span className="pts">{signedPoints(l.points)}</span>
               </span>
               {l.questionId && (
                 <Link href={`/questions/${l.questionId}`} className="admin-log-q">

@@ -43,6 +43,7 @@
   --success-soft: #dcf2e5;
   --danger: #a82a22;
   --danger-soft: #fbe6e4;
+  --danger-ink: #ffffff; /* 빨강 버튼 위 글자 (11차시 삭제 버튼) */
 
   /* ---- 점수·명성 ---- */
   --score: #9a5b06;
@@ -98,6 +99,7 @@
     --success-soft: #153a28;
     --danger: #f0897e;
     --danger-soft: #3a1b18;
+    --danger-ink: #2a0b08;
 
     --score: #e3a95e;
     --score-soft: #33240f;
@@ -1724,6 +1726,122 @@ a {
 }
 
 /* ============================================================
+   관리자 삭제 (11차시)
+   빨강은 원래 "진짜 오류"에만 쓴다. 되돌릴 수 없는 삭제도 같은 무게의 경고라서 여기에 쓴다.
+   평소(첫 버튼)에는 테두리만 빨강으로 조용하게 두고, 확인 단계에서만 꽉 찬 빨강을 쓴다.
+   ============================================================ */
+.btn-del {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+
+.btn-del:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+/* 확인 단계: 경고 문장 + [삭제] [취소] */
+.del-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--danger-soft);
+  border-radius: var(--radius-sm);
+}
+
+.del-warn {
+  flex: 1 1 14rem;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--sp-4);
+  background: var(--danger);
+  color: var(--danger-ink);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-danger:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+/* 작은 버튼. 높이는 44px 그대로 두고 좌우 여백만 줄인다 — 누르기 쉬운 건 유지 */
+.btn-sm {
+  padding: 0 var(--sp-3);
+  font-size: 0.85rem;
+}
+
+/* 최근 질문·답변 목록: 왼쪽 내용, 오른쪽 삭제 버튼 */
+.mod-list li {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.mod-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mod-meta {
+  margin-left: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  white-space: normal;
+}
+
+.mini-list .mod-meta a {
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+.mod-excerpt {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* 답변 카드·질문 상세 안의 삭제 버튼 줄 */
+.mod-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--sp-3);
+}
+
+.mod-actions-start {
+  justify-content: flex-start;
+}
+
+/* ============================================================
    작은 화면
    ============================================================ */
 @media (max-width: 640px) {
@@ -1795,6 +1913,11 @@ a {
 
   .callout {
     padding: var(--sp-4);
+  }
+
+  /* 좁은 화면에서는 삭제 버튼(과 확인 상자)을 내용 아래 줄로 내린다 */
+  .mod-list li {
+    flex-wrap: wrap;
   }
 }
 
