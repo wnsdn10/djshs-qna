@@ -55,7 +55,7 @@ function Welcome() {
   return (
     <>
       <section className="hero" aria-labelledby="hero-title">
-        <p className="eyebrow">대전동신과학고 학생 전용</p>
+        <p className="eyebrow">대전과학고 학생 전용</p>
         <h1 id="hero-title" className="hero-title">
           막힌 문제, 혼자 붙잡고 있지 마세요
         </h1>
