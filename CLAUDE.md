@@ -133,7 +133,10 @@ lib/
     answers.ts                getAnswers, createAnswer, acceptAnswer, CONTRIB_POINTS
     ranking.ts                getOverallRanking, getSubjectRanking, getMy*
 docs/
-  schema.sql  schema-6-auth.sql  schema-7-answers.sql  schema-8-rls.sql
+  schema.sql  schema-6-auth.sql  schema-7-answers.sql  schema-8-rls.sql  schema-9-ai-judge.sql
+lib/ai/judge.ts               Gemini 답변 유형 판정 (fetch, Interactions API)
+lib/supabase/admin.ts         secret 키 클라이언트 — createAnswer() 한 곳에서만
+design-system/djshs-qna/MASTER.md   ui-ux-pro-max 추천 중 채택·거절 근거
 ROADMAP.md                    8차시 전체 계획 + 에러 사례 모음 (785줄 이상)
 ```
 
@@ -165,6 +168,12 @@ ROADMAP.md                    8차시 전체 계획 + 에러 사례 모음 (785�
 - 채택 권한: 화면에서 버튼 숨김 + action에서 확인 + RLS `answers_update_by_question_author`
 - 중복 채택: `create unique index ... on answers (question_id) where is_accepted;`
 - 점수: **앱 코드에서 절대 더하지 않는다.** 트리거만 쓴다
+- 답변 유형(9차시): 학생 계정은 answers insert 권한이 **없다.** Server Action이 Gemini 판정 후
+  secret 키로 저장. 최종 = min(본인 선택, AI 판정), AI 실패 시 info. 같은 규칙이 DB check 제약에도 있음.
+  secret 키는 RLS를 건너뛰므로 `author_id`는 반드시 `getCurrentUser()`에서, 질문 접근권은 `getQuestion()`(RLS)으로 확인
+- 채택 시 질문 작성자가 바꿀 수 있는 칸은 `is_accepted` 하나 (열 단위 권한, schema-9)
+- 채택은 되돌릴 수 없다 (RLS `with check (is_accepted ...)`, schema-9). 풀었다 다시 채택하면
+  트리거 ②가 +5를 반복 적립하던 구멍 — 시험 DB에서 3번 반복에 9→29점 확인 후 막음
 
 ### 점수 트리거 3개 (연쇄)
 
@@ -184,35 +193,34 @@ ROADMAP.md                    8차시 전체 계획 + 에러 사례 모음 (785�
 
 ## 🔴 지금 당장 해야 할 일 (미완료)
 
-### 1. `docs/schema-8-rls.sql`을 Supabase에서 실행해야 한다 — 최우선
+### 1. `docs/schema-9-ai-judge.sql` 실행 + 환경변수 3개 — 최우선
 
-**아직 실행 안 됐다.** `questions` 테이블은 5차시의 임시 정책 그대로다:
+schema-8은 2026-10-31에 실행 완료.
 
-| 테이블 | 정책 | 대상 |
+9차시 코드는 **schema-9를 실행하기 전에 배포하면 답변 등록이 깨진다** (`claimed_type` 칸이 없음).
+순서: 환경변수 → SQL 실행 → 빌드 → 푸시.
+
+| 변수 | 어디서 | 비고 |
 |---|---|---|
-| answers / profiles / score_logs | (정상) | `authenticated` |
-| **questions** | **임시: 누구나 읽기 / 쓰기** | **`public` ← anon 포함** |
+| `SUPABASE_SECRET_KEY` | Supabase → Project Settings → API Keys → secret | **NEXT_PUBLIC_ 금지** |
+| `GEMINI_API_KEY` | Google AI Studio | |
+| `GEMINI_MODEL` (선택) | 없으면 `gemini-3.5-flash-lite` | 모델 종료되면 이것만 바꾸면 됨 |
 
-지금 상태에서는 **선배 전용 질문이 외부에서 읽히고, `author_id`를 남의 것으로 적어
-질문을 삽입할 수 있다.** 파일은 다시 실행해도 안전하게 (`drop policy if exists`) 고쳐뒀다.
-같은 파일에 `subject_ranking(subject text)` 함수도 들어있어서,
-실행 전까지 **과목별 랭킹은 에러**가 난다.
+키 값은 사용자가 직접 입력한다 (Claude는 키를 보거나 입력하지 않는다).
 
-Claude는 공유 DB 변경이 차단돼서 직접 못 돌린다. **사용자가 SQL Editor에 붙여넣고 Run.**
-
-확인:
-```sql
-select tablename, policyname, roles::text from pg_policies
-where schemaname='public' order by tablename, policyname;
-```
+schema-9는 로컬 Postgres 16에서 7·8·9 순서로 실행해 검증함: 학생 직접 insert 거부,
+제약 3개가 잘못된 유형 거부, 질문 작성자는 is_accepted만 수정 가능, 점수 3+1+5=9 정상.
+Gemini 실제 호출은 키가 없어 못 해봤다 — 응답 모양(`steps[].content[].text`)은 문서 기준.
+첫 답변 등록 때 서버 로그에 `[judgeAnswer]` 오류가 없는지 볼 것.
 
 ### 2. 커밋·푸시 안 된 변경
 
-UI/UX 개편 13개 파일 + 위 수정들이 디스크에만 있다. `npm run build` 통과 확인 후 푸시.
+11차시(메인 화면 + 디자인) 14개 파일, 9차시 AI 판정 파일들이 디스크에만 있을 수 있다.
+`git status`로 확인 후 `npm run build` → 푸시.
 
 ### 3. 남은 것
 
-- 다른 기수 계정으로 **선배 전용 질문 RLS 실제 검증** (1번 실행 후)
+- 다른 기수 계정으로 **선배 전용 질문 RLS 실제 검증**
 - `ROADMAP.md`는 최신이지만 **HTML 아티팩트 버전이 6·7·8차시 + 성능 + 디자인만큼 뒤처져 있음**
 - 7차시 이해 확인 질문 2개가 아직 답 안 됨:
   - (a) 채택 트리거에서 `if new.is_accepted and not old.is_accepted`를 빼면 뭐가 깨지나?
@@ -251,7 +259,7 @@ CSS는 잘못된 값을 **에러 없이 조용히 버린다.**
 "해결됨" 배지 배경이 사실상 안 보였다. 눈으로는 "좀 연하네" 정도로 넘어갔을 것이다.
 계산하니 1.75:1로 명백한 실패였다.
 
-현재 전 토큰 쌍이 라이트·다크 모두 **4.5:1 이상** (최저 4.74:1).
+현재 전 토큰 쌍이 라이트·다크 모두 **4.5:1 이상** (최저 4.61:1, `muted` on `primary-soft`).
 
 ---
 
@@ -303,10 +311,16 @@ CSS는 잘못된 값을 **에러 없이 조용히 버린다.**
 | HTTP 431 | 쿠키가 쌓여 헤더 초과 → Clear site data |
 | `Could not find the function public.xxx` | 해당 SQL 파일을 DB에서 실행 안 함 |
 | Postgres uuid 형식 오류 | `getQuestion()`의 `UUID_RE` 가드로 막음 |
+| 답변이 전부 "자료 제보"로 기록됨 + "판정을 받지 못해" | Gemini 실패. 서버 로그 `[judgeAnswer]` 확인 (키 누락·429 한도·404 모델 종료) |
+| `permission denied for table answers` | 학생 계정 클라이언트로 answers insert 시도. 저장은 `createAdminClient()`로 |
+| `SUPABASE_SECRET_KEY 가 없습니다` | `.env.local`/Vercel에 secret 키 누락. Vercel은 재배포 필요 |
 
 ### 환경변수
 
 `.env.local` (로컬)과 Vercel 양쪽에 있어야 한다. **Vercel에서 바꾸면 재배포해야 적용된다.**
+
+필요한 것: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+`SUPABASE_SECRET_KEY`, `GEMINI_API_KEY`, (선택) `GEMINI_MODEL`.
 
 `service_role` / secret 키는 **절대** `NEXT_PUBLIC_`에 넣지 않고 스크린샷에도 나오면 안 된다.
 `NEXT_PUBLIC_`이 붙으면 브라우저 번들에 그대로 들어간다.

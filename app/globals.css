@@ -367,6 +367,13 @@ a {
   transform: translateY(1px);
 }
 
+/* 처리 중인 버튼. 흐리게 하고 커서로도 "지금은 못 누른다"를 알린다 */
+.btn:disabled {
+  opacity: 0.7;
+  cursor: progress;
+  transform: none;
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--ink-2);
@@ -744,6 +751,42 @@ a {
   max-width: 65ch;
   white-space: pre-wrap;
   color: var(--ink-2);
+}
+
+/* AI 판정 한 줄 (9차시). 본문보다 작고 옅게 — 본문을 가리면 안 된다.
+   점수가 깎인 경우도 오류가 아니므로 빨강을 쓰지 않는다. */
+.ai-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-2);
+  margin: var(--sp-3) 0 0;
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--border);
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.ai-note-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+/* 답변 폼의 "AI가 확인합니다" 안내. 다른 도움말보다 한 단계 진하게 — 점수와 직결되는 규칙이다 */
+.ai-help {
+  color: var(--ink-2);
+}
+
+/* "전체 답변 → 방향 제시" — 무엇이 바뀌었는지가 핵심이라 진하게 */
+.ai-note-change {
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
 }
 
 .accept-form {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getQuestion } from "@/lib/data/questions";
 import type { QuestionStatus, QuestionType } from "@/lib/data/questions";
+import type { Answer } from "@/lib/data/answers";
 import {
   getAnswers,
   CONTRIB_LABEL,
@@ -159,6 +160,8 @@ export default async function QuestionDetailPage({
 
               <p className="answer-body">{a.body}</p>
 
+              <AiNote answer={a} />
+
               {/* 채택 버튼은 질문을 쓴 사람에게만, 아직 채택된 답변이 없을 때만.
                   화면에서 숨기는 것과 별개로 DB의 RLS 정책도 같은 조건을 건다. */}
               {isQuestionAuthor && !hasAccepted && (
@@ -179,5 +182,44 @@ export default async function QuestionDetailPage({
       <h2 className="sec-title">답변 쓰기</h2>
       <AnswerForm questionId={question.id} />
     </article>
+  );
+}
+
+/**
+ * 답변 아래에 AI 판정 결과를 한 줄로 보여준다. (9차시)
+ *
+ * ★ 왜 이유까지 보여주나
+ *   점수가 깎였는데 이유를 모르면 학생은 "AI가 멋대로 깎았다"고 느낀다.
+ *   이유가 보이면 납득하거나, 적어도 무엇이 부족했는지 알 수 있다.
+ *   다른 학생들도 "이 서비스는 무엇을 전체 답변으로 보는지"를 배운다.
+ *
+ * 깎인 건 잘못이 아니라서 빨강(--danger)을 쓰지 않는다.
+ */
+function AiNote({ answer: a }: { answer: Answer }) {
+  // 9차시 전에 쓴 답변은 판정 기록이 없다
+  if (a.claimedType === null) return null;
+
+  const lowered = a.contribType !== a.claimedType;
+
+  // AI 호출이 실패해서 '자료 제보'로 기록된 경우
+  if (a.aiType === null) {
+    return lowered ? (
+      <p className="ai-note">
+        <span className="ai-note-label">AI 판정</span>
+        판정을 받지 못해 {CONTRIB_LABEL[a.contribType]}(으)로 기록했습니다.
+      </p>
+    ) : null;
+  }
+
+  return (
+    <p className="ai-note">
+      <span className="ai-note-label">AI 판정</span>
+      {lowered && (
+        <span className="ai-note-change">
+          {CONTRIB_LABEL[a.claimedType]} → {CONTRIB_LABEL[a.contribType]}
+        </span>
+      )}
+      {a.aiReason}
+    </p>
   );
 }

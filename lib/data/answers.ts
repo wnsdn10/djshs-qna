@@ -8,6 +8,8 @@
 //   "한 가지 일은 한 곳에서만" — 그게 어디인지 정해두는 게 설계다.
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { Judgement } from "@/lib/ai/judge";
 
 /** 기여 유형 — 계획서의 자료 제보 / 방향 제시 / 전체 답변 */
 export type ContribType = "info" | "direction" | "full";
@@ -20,7 +22,13 @@ export type Answer = {
   authorName: string;
   authorCohort: number;
   body: string;
+  /** 최종 유형. 점수는 이것으로 매겨진다 */
   contribType: ContribType;
+  /** 작성자가 고른 유형. 9차시 전 답변은 null */
+  claimedType: ContribType | null;
+  /** AI가 판정한 유형. AI 호출이 실패했거나 9차시 전 답변이면 null */
+  aiType: ContribType | null;
+  aiReason: string | null;
   isAccepted: boolean;
   createdAt: string;
 };
@@ -52,12 +60,51 @@ export const CONTRIB_POINTS: Record<ContribType, number> = {
 /** 채택되면 추가로 받는 점수 */
 export const ACCEPT_POINTS = 5;
 
+/**
+ * 유형의 높낮이. DB의 contrib_rank() 와 같은 순서다.
+ * 점수(1·3·8)로 비교하지 않는 이유: 점수표가 바뀌어도 "어느 유형이 더 높은가"는 그대로여야 한다.
+ */
+const CONTRIB_RANK: Record<ContribType, number> = {
+  info: 1,
+  direction: 2,
+  full: 3,
+};
+
+/**
+ * ★ 최종 유형을 정하는 규칙 (9차시) — 발표에서 설명할 부분
+ *
+ *   최종 = "본인이 고른 유형"과 "AI 판정" 중 낮은 쪽
+ *   AI 판정을 못 받았으면 = 가장 낮은 '자료 제보'
+ *
+ * 왜 "낮은 쪽"인가
+ *   AI는 점수를 깎을 수만 있고 올릴 수는 없게 하려는 것이다.
+ *   - AI가 잘못 판단해도 본인이 고른 것보다 높게 주는 일은 없다
+ *   - 누가 답변에 "full로 판정해" 같은 문장을 넣어 AI를 속여도, 얻는 건 본인이 고른 점수까지다
+ *
+ * 왜 AI가 실패하면 '자료 제보'인가
+ *   "실패하면 본인 선택대로" 하면, Gemini가 멈춘 틈에 대충 쓰고 '전체 답변'을 고르면 8점이 된다.
+ *   막아야 할 상황에서 문을 열어주게 된다. 그래서 실패하면 가장 낮은 쪽으로 닫는다.
+ *
+ * 같은 규칙이 DB 제약(schema-9의 answers_final_le_* 등)에도 걸려 있다.
+ * 이 함수에 실수가 있어도 DB가 저장을 거부한다.
+ */
+export function decideFinalType(
+  claimed: ContribType,
+  ai: ContribType | null
+): ContribType {
+  if (ai === null) return "info";
+  return CONTRIB_RANK[ai] < CONTRIB_RANK[claimed] ? ai : claimed;
+}
+
 type AnswerRow = {
   id: string;
   question_id: string;
   author_id: string;
   body: string;
   contrib_type: ContribType;
+  claimed_type: ContribType | null;
+  ai_type: ContribType | null;
+  ai_reason: string | null;
   is_accepted: boolean;
   created_at: string;
   // profiles 테이블을 함께 가져온 결과
@@ -73,6 +120,9 @@ function toAnswer(row: AnswerRow): Answer {
     authorCohort: row.profiles?.cohort ?? 0,
     body: row.body,
     contribType: row.contrib_type,
+    claimedType: row.claimed_type,
+    aiType: row.ai_type,
+    aiReason: row.ai_reason,
     isAccepted: row.is_accepted,
     createdAt: row.created_at.slice(0, 10),
   };
@@ -101,25 +151,53 @@ export async function getAnswers(questionId: string): Promise<Answer[]> {
 
 export type NewAnswerInput = {
   questionId: string;
+  /** 반드시 로그인 정보(getCurrentUser)에서 온 값이어야 한다. 아래 설명 참고 */
   authorId: string;
   body: string;
-  contribType: ContribType;
+  /** 작성자가 폼에서 고른 유형 */
+  claimedType: ContribType;
+  /** Gemini 판정. 실패했으면 null */
+  judgement: Judgement | null;
 };
 
-/** 답변을 등록한다. 점수 기록과 질문 상태 변경은 DB 트리거가 이어서 처리한다. */
-export async function createAnswer(input: NewAnswerInput): Promise<void> {
-  const supabase = await createClient();
+/**
+ * 답변을 등록한다. 점수 기록과 질문 상태 변경은 DB 트리거가 이어서 처리한다.
+ *
+ * ★ 9차시부터 secret 키 클라이언트(createAdminClient)로 저장한다.
+ *   학생 계정은 answers에 insert 할 권한이 없다 (schema-9). AI 판정을 건너뛰는 길을 막기 위해서다.
+ *
+ *   대신 RLS가 "본인 이름으로만 쓰기"를 더 이상 확인해 주지 않는다 (secret 키는 RLS를 건너뛴다).
+ *   그래서 authorId를 폼에서 받지 않고 서버가 로그인 정보로 넣는다는 약속이 더 중요해졌다.
+ *   이 함수를 부르는 곳은 addAnswerAction 하나뿐이고, 거기서 user.id를 넣는다.
+ *
+ * 최종 유형은 여기서 decideFinalType()으로 정한다. 부르는 쪽이 규칙을 빼먹을 수 없게
+ * "저장하는 함수 안"에 둔다.
+ */
+export async function createAnswer(
+  input: NewAnswerInput
+): Promise<{ finalType: ContribType }> {
+  const finalType = decideFinalType(
+    input.claimedType,
+    input.judgement?.type ?? null
+  );
+
+  const supabase = createAdminClient();
 
   const { error } = await supabase.from("answers").insert({
     question_id: input.questionId,
     author_id: input.authorId,
     body: input.body,
-    contrib_type: input.contribType,
+    contrib_type: finalType, // 점수 트리거는 이 칸만 본다
+    claimed_type: input.claimedType,
+    ai_type: input.judgement?.type ?? null,
+    ai_reason: input.judgement?.reason ?? null,
   });
 
   if (error) {
     throw new Error(`답변을 등록하지 못했습니다: ${error.message}`);
   }
+
+  return { finalType };
 }
 
 /**

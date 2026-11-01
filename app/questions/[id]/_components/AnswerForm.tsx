@@ -11,6 +11,7 @@ import {
   ACCEPT_POINTS,
 } from "@/lib/data/answers";
 import type { ContribType } from "@/lib/data/answers";
+import SubmitAnswerButton from "./SubmitAnswerButton";
 
 const TYPES: ContribType[] = ["info", "direction", "full"];
 
@@ -34,6 +35,12 @@ export default function AnswerForm({ questionId }: { questionId: string }) {
         <p className="field-help">
           고른 유형에 따라 점수가 쌓이고, 질문자가 채택하면 {ACCEPT_POINTS}점이
           더해집니다.
+        </p>
+        {/* ★ 규칙을 등록 "전에" 알려준다. 등록하고 나서 점수가 깎인 걸 보면 억울하다.
+            "올려 주지는 않는다"도 같이 적는다. 겸손하게 낮게 고르면 AI가 높여 주지 않으니, 한 만큼 고르라는 뜻이다. */}
+        <p className="field-help ai-help">
+          등록하면 AI가 내용을 보고 유형을 확인합니다. 고른 유형보다 내용이
+          부족하면 낮춰서 기록하고, 더 높게 올려 주지는 않습니다.
         </p>
         {/* ★ 설명을 title(마우스를 올리면 뜨는 말풍선)에서 화면에 보이는 글자로 옮겼다.
             title은 휴대폰에서는 볼 방법이 없고, 키보드 사용자에게도 잘 안 보인다.
@@ -60,9 +67,7 @@ export default function AnswerForm({ questionId }: { questionId: string }) {
       </fieldset>
 
       <div className="form-actions">
-        <button type="submit" className="btn">
-          답변 등록
-        </button>
+        <SubmitAnswerButton />
       </div>
     </form>
   );
