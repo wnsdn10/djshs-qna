@@ -99,7 +99,7 @@ export async function requireUser(): Promise<CurrentUser> {
  * 바뀔 일이 거의 없고, 코드에 있으면 "누가 관리자인가"가 리뷰에서 바로 보인다.
  * 누구를 추가하려면 여기 한 줄을 넣고 배포하면 된다.
  */
-const ADMIN_EMAILS = ["42th2505@djshs.djsch.kr"];
+const ADMIN_EMAILS = ["42th16@djshs.djsch.kr"];
 
 /** 이 사람이 관리자인가. 헤더에 "관리" 메뉴를 보여줄지 정할 때 쓴다 */
 export function isAdmin(user: CurrentUser | null): boolean {

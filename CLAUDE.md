@@ -5,7 +5,8 @@
 대전동신과학고 교내 Q&A 서비스. 학교 구글 계정으로 로그인해서 질문을 올리고,
 서로 답변하고, 기여 점수를 쌓는다. 학교 정보과학 수업 프로젝트.
 
-- 만든 사람: 김준우 (42기 2505, `42th2505@djshs.djsch.kr`)
+- 만든 사람: 김준우 (42기, 학번 2505, 학교 계정 `42th16@djshs.djsch.kr`)
+  - 학번(2505)과 이메일 번호(16)는 다르다. 이메일을 학번으로 추측해 관리자 이메일을 잘못 넣은 적이 있다 (10차시)
 - 저장소: `github.com/wnsdn10/djshs-qna`
 - 배포: `https://djshs-qna.vercel.app`
 - Supabase 프로젝트 ref: `uruhiqflgsqgraljkiud`
