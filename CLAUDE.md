@@ -84,6 +84,16 @@
 ## 기술 스택
 
 Next.js 16.3.4 (App Router, Turbopack) · React 19.2 · TypeScript · Supabase (Postgres + Auth) · Vercel
+· KaTeX 0.19.1 (12차시, 수식. 이 프로젝트에서 처음 추가한 화면용 라이브러리 — 수식 조판을 직접 만드는 건 비현실적)
+
+### 수식 (12차시)
+
+- `$x^2$` 문장 안, `$$...$$` 따로 한 줄, `\$` 는 그냥 $. 질문·답변 **본문만** (제목·목록 미리보기는 원문 그대로)
+- $ 하나짜리 규칙: Pandoc 규칙(여는 $ 뒤 공백 ✗, 닫는 $ 앞 공백 ✗, 닫는 $ 뒤 숫자 ✗, 한 줄 안) +
+  **사이에 한글 있으면 수식 아님**(`\text{}` 예외). 마지막 규칙은 "$15였어요 … $\frac{1}{$"에서 문장 전체가 수식이 된 걸 보고 추가
+- 보안: 수식만 `dangerouslySetInnerHTML`, 글자는 React가 escape. `trust:false`로 `\href{javascript:}` 차단 (시험함)
+- `output`은 기본값(html+MathML). `"html"`로 바꾸면 `aria-hidden`만 남아 스크린 리더가 수식을 못 읽는다
+- 시험: `lib/math.ts` 경계 사례 16개 통과 (돈 표시, 이스케이프, 닫히지 않음, 줄 넘김, HTML 등)
 
 ### Next.js 16에서 바뀐 것 (training data와 다름)
 
@@ -136,6 +146,10 @@ lib/
 docs/
   schema.sql  schema-6-auth.sql  schema-7-answers.sql  schema-8-rls.sql  schema-9-ai-judge.sql
   schema-10-privacy.sql  schema-11-moderation.sql
+lib/math.ts                   본문에서 $수식$·$$수식$$ 찾기 (splitMath) + KaTeX 설정 — 12차시
+app/_components/renderMath.tsx 조각 → React (본문·미리보기 공용)
+app/_components/MathText.tsx  수식 본문 (서버에서 KaTeX로 그림, 브라우저는 KaTeX JS 안 받음)
+app/_components/MathTextarea.tsx  입력칸 + 미리보기 (클라이언트, $ 쓰면 그때 KaTeX 불러옴)
 app/admin/actions.ts          관리자 삭제 Server Action — 첫 줄 requireAdmin() 필수
 app/_components/AdminDeleteButton.tsx  2단계 확인 삭제 버튼 (클라이언트)
 app/admin/page.tsx            관리자 화면 (requireAdmin) — 전체 학생 점수·활동
@@ -227,6 +241,12 @@ schema-10도 로컬 Postgres 16에서 7·8·9·10 순서로 검증함: 프로필
 환경변수: `SUPABASE_SECRET_KEY`, `GEMINI_API_KEY`, (선택) `GEMINI_MODEL`.
 키 값은 사용자가 직접 입력한다 (Claude는 키를 보거나 입력하지 않는다). Vercel은 Secret(Sensitive) 타입으로.
 Gemini 실제 호출은 아직 확인 못 함 — 첫 답변 등록 때 서버 로그 `[judgeAnswer]` 확인.
+
+### 1-2. `npm install katex@0.19.1` (12차시)
+
+수식 코드는 디스크에 있지만 **package.json에는 아직 katex가 없다.** 사용자가 위 명령으로 설치하면
+package.json과 package-lock.json이 같이 바뀐다. 이걸 안 하고 커밋하면 Vercel 빌드가 `Cannot find module 'katex'`로 실패.
+(Claude 컨테이너의 npm은 lock 파일을 다르게 써서 — `libc` 필드 13개를 지움 — 직접 만들어 넣지 않았다)
 
 ### 2. 커밋·푸시 안 된 변경
 
@@ -334,6 +354,7 @@ CSS는 잘못된 값을 **에러 없이 조용히 버린다.**
 | 답변이 전부 "자료 제보"로 기록됨 + "판정을 받지 못해" | Gemini 실패. 서버 로그 `[judgeAnswer]` 확인 (키 누락·429 한도·404 모델 종료) |
 | `permission denied for table answers` | 학생 계정 클라이언트로 answers insert 시도. 저장은 `createAdminClient()`로 |
 | `SUPABASE_SECRET_KEY 가 없습니다` | `.env.local`/Vercel에 secret 키 누락. Vercel은 재배포 필요 |
+| `Cannot find module 'katex'` | `npm install katex@0.19.1` 안 함 (package.json에 없음) |
 
 ### 환경변수
 

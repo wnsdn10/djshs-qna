@@ -14,6 +14,7 @@ import {
 import { requireUser, isAdmin } from "@/lib/auth";
 import { deleteQuestionAction, deleteAnswerAction } from "@/app/admin/actions";
 import AdminDeleteButton from "@/app/_components/AdminDeleteButton";
+import MathText from "@/app/_components/MathText";
 import { acceptAnswerAction } from "./actions";
 import AnswerForm from "./_components/AnswerForm";
 import {
@@ -99,7 +100,8 @@ export default async function QuestionDetailPage({
         </div>
 
         <h1>{question.title}</h1>
-        <p className="q-detail-body">{question.body}</p>
+        {/* 12차시: $...$ 수식을 그려서 보여준다 (글자는 그대로, 수식만 KaTeX로) */}
+        <MathText text={question.body} className="q-detail-body" />
 
         {/* 질문은 익명 — 기수만 */}
         <p className="q-meta">
@@ -175,7 +177,7 @@ export default async function QuestionDetailPage({
                 <span className="answer-date">{a.createdAt}</span>
               </div>
 
-              <p className="answer-body">{a.body}</p>
+              <MathText text={a.body} className="answer-body" />
 
               <AiNote answer={a} />
 

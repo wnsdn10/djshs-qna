@@ -12,6 +12,7 @@ import { getAdminUserDetail } from "@/lib/data/admin";
 import { CONTRIB_LABEL, signedPoints } from "@/lib/data/answers";
 import { deleteQuestionAction, deleteAnswerAction } from "@/app/admin/actions";
 import AdminDeleteButton from "@/app/_components/AdminDeleteButton";
+import MathText from "@/app/_components/MathText";
 import { IconArrowLeft, IconLock } from "@/app/_components/icons";
 
 export const metadata: Metadata = {
@@ -118,7 +119,7 @@ export default async function AdminUserPage({
                   {a.isAccepted && <span className="chip chip-ok">채택됨</span>}
                   <span className="answer-date">{a.createdAt}</span>
                 </div>
-                <p className="answer-body">{a.body}</p>
+                <MathText text={a.body} className="answer-body" />
 
                 {/* 답변 화면과 같은 모양으로 AI 판정을 보여준다.
                     관리자는 "AI가 왜 낮췄는지"가 타당했는지를 여기서 확인한다 */}

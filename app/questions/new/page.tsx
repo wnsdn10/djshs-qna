@@ -1,6 +1,7 @@
 // app/questions/new/page.tsx  →  주소: /questions/new
 
 import Link from "next/link";
+import MathTextarea from "@/app/_components/MathTextarea";
 import { createQuestionAction } from "./actions";
 import { requireUser } from "@/lib/auth";
 import { IconArrowLeft, IconAlert } from "@/app/_components/icons";
@@ -54,7 +55,8 @@ export default async function NewQuestionPage({
           <p className="field-help">
             시도해 본 것과 어디서 막혔는지를 같이 적어주세요.
           </p>
-          <textarea id="body" name="body" rows={8} required />
+          {/* 12차시: 수식 미리보기가 붙은 입력칸 */}
+          <MathTextarea id="body" name="body" rows={8} required />
         </div>
 
         <div className="field">

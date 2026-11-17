@@ -12,6 +12,7 @@ import {
 } from "@/lib/data/answers";
 import type { ContribType } from "@/lib/data/answers";
 import SubmitAnswerButton from "./SubmitAnswerButton";
+import MathTextarea from "@/app/_components/MathTextarea";
 
 const TYPES: ContribType[] = ["info", "direction", "full"];
 
@@ -27,7 +28,8 @@ export default function AnswerForm({ questionId }: { questionId: string }) {
         <p className="field-help">
           완전한 답이 아니어도 괜찮습니다. 방향만 짚어줘도 도움이 됩니다.
         </p>
-        <textarea id="body" name="body" rows={6} required />
+        {/* 12차시: 수식 미리보기가 붙은 입력칸. 폼으로 보내지는 값은 그냥 textarea와 같다 */}
+        <MathTextarea id="body" name="body" rows={6} required />
       </div>
 
       <fieldset className="field">

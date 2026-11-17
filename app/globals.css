@@ -1842,6 +1842,64 @@ a {
 }
 
 /* ============================================================
+   수식 (12차시) — KaTeX가 그린 결과에 우리 화면 규칙을 맞춘다
+   KaTeX 자체 CSS는 MathText/MathTextarea에서 불러온다. 여기서는 덮어쓰기만 한다.
+   ============================================================ */
+
+/* KaTeX 기본 크기(본문의 1.21배)는 한글 옆에서 너무 크다. 조금 줄인다 */
+.katex {
+  font-size: 1.1em;
+}
+
+/* 따로 한 줄 수식. 긴 식은 휴대폰 화면을 넘칠 수 있어서,
+   페이지 전체가 옆으로 밀리는 대신 수식 칸만 좌우로 스크롤되게 한다 */
+.math-display {
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* 스크롤바가 수식 아래 끝을 가리지 않게 여유를 둔다 */
+  padding: 2px 0;
+}
+
+/* KaTeX 기본 위아래 여백(1em)은 본문 줄 간격과 합쳐지면 넓다 */
+.math-display .katex-display {
+  margin: 0.5em 0;
+}
+
+/* 입력칸 아래 "수식은 $x^2$ 처럼" 안내 */
+.math-help {
+  margin-top: var(--sp-2);
+}
+
+.math-help code {
+  font-family: var(--mono);
+  font-size: 0.95em;
+  padding: 0 4px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  color: var(--ink-2);
+  /* 수식 예시가 중간에서 줄바꿈되지 않게 */
+  white-space: nowrap;
+}
+
+/* 미리보기 상자. 본문과 같은 글자 모양에, 테두리만 점선으로 "아직 등록 전"임을 보여준다 */
+.math-preview {
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.math-preview-label {
+  display: block;
+  margin-bottom: var(--sp-1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ============================================================
    작은 화면
    ============================================================ */
 @media (max-width: 640px) {
