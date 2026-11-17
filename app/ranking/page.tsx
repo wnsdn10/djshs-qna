@@ -1,6 +1,7 @@
 // app/ranking/page.tsx  →  주소: /ranking
 
 import Link from "next/link";
+import { SCORE_MAX, ACCEPT_POINTS } from "@/lib/data/answers";
 import { requireUser } from "@/lib/auth";
 import {
   getOverallRanking,
@@ -64,7 +65,8 @@ export default async function RankingPage({
       </div>
 
       <p className="lead">
-        자료 제보 1점 · 방향 제시 3점 · 전체 답변 8점 · 채택되면 5점이 더해집니다.
+        {/* 12차시: 점수는 AI가 답변마다 0~8점으로 매긴다. 숫자는 lib/data/answers.ts에서 가져온다 */}
+        답변마다 AI가 0~{SCORE_MAX}점으로 채점하고, 채택되면 {ACCEPT_POINTS}점이 더해집니다.
       </p>
 
       {/* 과목 선택은 주소(?subject=물리)로 한다.

@@ -6,23 +6,18 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { createAnswer, acceptAnswer } from "@/lib/data/answers";
-import type { ContribType } from "@/lib/data/answers";
 import { getQuestion } from "@/lib/data/questions";
 import { judgeAnswer } from "@/lib/ai/judge";
-
-const VALID_TYPES: ContribType[] = ["info", "direction", "full"];
 
 export async function addAnswerAction(formData: FormData) {
   const user = await requireUser();
 
   const questionId = String(formData.get("questionId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
-  const contribType = String(formData.get("contribType") ?? "") as ContribType;
+  // 12차시: 폼에서 유형(contribType)을 받지 않는다. 점수는 AI가 정한다.
+  // (예전 폼이 열려 있던 브라우저가 contribType을 보내도 읽지 않으므로 아무 영향이 없다)
 
   if (!body) redirect(`/questions/${questionId}?error=body`);
-  if (!VALID_TYPES.includes(contribType)) {
-    redirect(`/questions/${questionId}?error=type`);
-  }
 
   // ★ 질문을 "내 권한으로" 읽는다 (9차시에 추가)
   //   이유 1: Gemini에게 질문 내용을 같이 보여줘야 답변이 질문에 맞는지 판단할 수 있다.
@@ -32,21 +27,19 @@ export async function addAnswerAction(formData: FormData) {
   const question = await getQuestion(questionId);
   if (!question) redirect("/questions");
 
-  // Gemini 판정. 실패하면 null — 답변 등록은 막지 않는다
+  // Gemini가 0~8점으로 채점. 실패하면 null — 답변 등록은 막지 않고 "판정 대기"로 저장한다
   const judgement = await judgeAnswer({
     questionTitle: question.title,
     questionBody: question.body,
     answerBody: body,
   });
 
-  // 최종 유형("고른 것과 AI 판정 중 낮은 쪽")은 createAnswer 안에서 정한다
   await createAnswer({
     questionId,
     // 작성자는 폼에서 받지 않는다. 받으면 남의 이름으로 답변을 올릴 수 있다.
     // secret 키로 저장하는 9차시부터는 RLS가 이걸 대신 막아주지 않으므로 더 중요하다.
     authorId: user.id,
     body,
-    claimedType: contribType,
     judgement,
   });
 

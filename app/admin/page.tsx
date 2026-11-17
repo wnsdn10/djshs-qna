@@ -15,9 +15,12 @@ import {
   getRecentScoreLogs,
   getRecentQuestions,
   getRecentAnswers,
+  getPendingAnswers,
 } from "@/lib/data/admin";
+import type { AdminRecentAnswer } from "@/lib/data/admin";
 import { CONTRIB_LABEL, signedPoints } from "@/lib/data/answers";
-import { deleteQuestionAction, deleteAnswerAction } from "./actions";
+import { deleteQuestionAction, deleteAnswerAction, rejudgeAnswerAction } from "./actions";
+import RejudgeButton from "./_components/RejudgeButton";
 import AdminDeleteButton from "@/app/_components/AdminDeleteButton";
 import { IconArrowRight, IconLock } from "@/app/_components/icons";
 
@@ -41,12 +44,14 @@ const REASON_LABEL: Record<string, string> = {
 export default async function AdminPage() {
   await requireAdmin();
 
-  const [{ users, totals }, logs, recentQuestions, recentAnswers] = await Promise.all([
-    getAdminUsers(),
-    getRecentScoreLogs(30),
-    getRecentQuestions(15),
-    getRecentAnswers(15),
-  ]);
+  const [{ users, totals }, logs, recentQuestions, recentAnswers, pendingAnswers] =
+    await Promise.all([
+      getAdminUsers(),
+      getRecentScoreLogs(30),
+      getRecentQuestions(15),
+      getRecentAnswers(15),
+      getPendingAnswers(),
+    ]);
 
   return (
     <>
@@ -72,15 +77,46 @@ export default async function AdminPage() {
           <span className="stat-label">답변</span>
         </li>
         <li className="stat">
-          <span className="stat-num">{totals.lowered}</span>
-          <span className="stat-label">AI가 유형을 낮춘 답변</span>
+          <span className="stat-num">{totals.zero}</span>
+          <span className="stat-label">AI가 0점 준 답변</span>
         </li>
-        {/* AI 판정 실패는 0이 정상이다. 0이 아닐 때만 눈에 띄게 (진짜 문제라서 빨강) */}
-        <li className={totals.aiFailed > 0 ? "stat stat-warn" : "stat"}>
-          <span className="stat-num">{totals.aiFailed}</span>
-          <span className="stat-label">AI 판정 실패</span>
+        {/* 채점 대기는 0이 정상이다. 0이 아닐 때만 눈에 띄게 (Gemini가 실패했다는 뜻이라 빨강) */}
+        <li className={totals.pending > 0 ? "stat stat-warn" : "stat"}>
+          <span className="stat-num">{totals.pending}</span>
+          <span className="stat-label">채점 대기</span>
         </li>
       </ul>
+
+      {/* 12차시: Gemini가 실패해서 점수 없이 저장된 답변. 있을 때만 보인다.
+          "다시 채점"을 누르면 그때 점수가 정해지고 DB 트리거가 적립한다. */}
+      {pendingAnswers.length > 0 && (
+        <>
+          <h2 className="sec-title sec-gap">
+            채점 대기 <span className="count">{pendingAnswers.length}</span>
+          </h2>
+          <p className="lead lead-tight">
+            AI 채점이 실패해 아직 0점인 답변입니다. 계속 실패하면 서버 로그의 [judgeAnswer] 줄을 확인하세요.
+          </p>
+          <ul className="mini-list mod-list">
+            {pendingAnswers.map((a) => (
+              <li key={a.id}>
+                <span className="mod-main">
+                  <span className="mod-excerpt">{a.excerpt}</span>
+                  <span className="mini-meta mod-meta">
+                    <Link href={`/admin/users/${a.authorId}`}>{a.who}</Link>
+                    <Link href={`/questions/${a.questionId}`}>{a.questionTitle}</Link>
+                    <span>{a.at}</span>
+                  </span>
+                </span>
+                <form action={rejudgeAnswerAction}>
+                  <input type="hidden" name="id" value={a.id} />
+                  <RejudgeButton />
+                </form>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       {/* ★ 최근 올라온 글을 학생 목록보다 위에 둔다.
           관리자가 이 화면에 들어오는 가장 흔한 이유가 "이상한 글이 올라왔나"이기 때문이다. */}
@@ -131,7 +167,7 @@ export default async function AdminPage() {
                   <Link href={`/admin/users/${a.authorId}`}>
                     {a.who}
                   </Link>
-                  <span>{CONTRIB_LABEL[a.contribType]}</span>
+                  <span>{answerScoreText(a)}</span>
                   <Link href={`/questions/${a.questionId}`}>{a.questionTitle}</Link>
                   <span>{a.at}</span>
                 </span>
@@ -166,8 +202,9 @@ export default async function AdminPage() {
                   <span>질문 {u.questionCount}</span>
                   <span>답변 {u.answerCount}</span>
                   <span>채택 {u.acceptedCount}</span>
-                  {u.loweredCount > 0 && (
-                    <span className="chip">AI 낮춤 {u.loweredCount}</span>
+                  {/* 0점 답변이 많으면 성의 없는 답을 반복한다는 신호다 */}
+                  {u.zeroCount > 0 && (
+                    <span className="chip">0점 답변 {u.zeroCount}</span>
                   )}
                 </span>
 
@@ -207,4 +244,11 @@ export default async function AdminPage() {
       )}
     </>
   );
+}
+
+/** 답변 목록의 점수 표시. 12차시 답변은 "5점", 그 전 답변은 유형 이름, 채점 대기는 그대로 표시 */
+function answerScoreText(a: AdminRecentAnswer): string {
+  if (a.pending) return "채점 대기";
+  if (a.aiScore !== null) return `AI ${a.aiScore}점`;
+  return a.contribType ? CONTRIB_LABEL[a.contribType] : "";
 }

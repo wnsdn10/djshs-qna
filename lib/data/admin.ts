@@ -15,6 +15,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ContribType } from "@/lib/data/answers";
+import { judgeAnswer } from "@/lib/ai/judge";
 
 export type AdminUserRow = {
   id: string;
@@ -26,8 +27,8 @@ export type AdminUserRow = {
   questionCount: number;
   answerCount: number;
   acceptedCount: number;
-  /** AI 판정으로 본인이 고른 것보다 낮게 기록된 답변 수. 많으면 "높게 고르는" 습관이 있다는 뜻 */
-  loweredCount: number;
+  /** AI가 0점을 준 답변 수 (12차시). 많으면 성의 없는 답을 반복한다는 신호 */
+  zeroCount: number;
   /** 가입한 날 (YYYY-MM-DD) */
   joinedAt: string;
   /** 마지막으로 로그인한 때 (YYYY-MM-DD HH:mm, 한국 시간). 기록이 없으면 null */
@@ -38,10 +39,10 @@ export type AdminTotals = {
   users: number;
   questions: number;
   answers: number;
-  /** AI가 유형을 낮춘 답변 */
-  lowered: number;
-  /** AI 판정을 받지 못한 답변 (Gemini 실패) — 0이 아니면 키·한도를 확인할 것 */
-  aiFailed: number;
+  /** AI가 0점을 준 답변 */
+  zero: number;
+  /** AI 채점을 아직 못 받은 답변 (Gemini 실패) — 0이 아니면 키·한도를 확인하고 "다시 채점" */
+  pending: number;
 };
 
 /** "2026-11-01T09:30:00Z" → "2026-11-01 18:30" (한국 시간) */
@@ -74,7 +75,7 @@ export async function getAdminUsers(): Promise<{
     supabase.from("questions").select("author_id"),
     supabase
       .from("answers")
-      .select("author_id, contrib_type, claimed_type, ai_type, is_accepted"),
+      .select("author_id, contrib_type, ai_score, is_accepted"),
     // ★ 마지막 로그인 시각은 profiles가 아니라 Supabase 인증 쪽(auth.users)에 있다.
     //   auth.admin 은 secret 키로만 쓸 수 있는 관리용 API다.
     supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
@@ -99,26 +100,24 @@ export async function getAdminUsers(): Promise<{
 
   const aCount = new Map<string, number>();
   const accCount = new Map<string, number>();
-  const lowCount = new Map<string, number>();
-  let lowered = 0;
-  let aiFailed = 0;
+  const zeroCount = new Map<string, number>();
+  let zero = 0;
+  let pending = 0;
 
   for (const a of answersRes.data as {
     author_id: string;
-    contrib_type: ContribType;
-    claimed_type: ContribType | null;
-    ai_type: ContribType | null;
+    contrib_type: ContribType | null;
+    ai_score: number | null;
     is_accepted: boolean;
   }[]) {
     aCount.set(a.author_id, (aCount.get(a.author_id) ?? 0) + 1);
     if (a.is_accepted) accCount.set(a.author_id, (accCount.get(a.author_id) ?? 0) + 1);
 
-    // 9차시 전 답변(claimed_type 없음)은 판정 대상이 아니었으므로 세지 않는다
-    if (a.claimed_type === null) continue;
-    if (a.ai_type === null) aiFailed++;
-    else if (a.contrib_type !== a.claimed_type) {
-      lowered++;
-      lowCount.set(a.author_id, (lowCount.get(a.author_id) ?? 0) + 1);
+    // 점수도 유형도 없으면 채점 대기 (lib/data/answers.ts의 pending과 같은 판단)
+    if (a.ai_score === null && a.contrib_type === null) pending++;
+    if (a.ai_score === 0) {
+      zero++;
+      zeroCount.set(a.author_id, (zeroCount.get(a.author_id) ?? 0) + 1);
     }
   }
 
@@ -132,7 +131,7 @@ export async function getAdminUsers(): Promise<{
     questionCount: qCount.get(p.id) ?? 0,
     answerCount: aCount.get(p.id) ?? 0,
     acceptedCount: accCount.get(p.id) ?? 0,
-    loweredCount: lowCount.get(p.id) ?? 0,
+    zeroCount: zeroCount.get(p.id) ?? 0,
     joinedAt: (p.created_at as string).slice(0, 10),
     lastSignInAt: toKst(lastSignIn.get(p.id)),
   }));
@@ -146,8 +145,8 @@ export async function getAdminUsers(): Promise<{
       users: users.length,
       questions: questionsRes.data.length,
       answers: answersRes.data.length,
-      lowered,
-      aiFailed,
+      zero,
+      pending,
     },
   };
 }
@@ -216,7 +215,11 @@ export type AdminUserDetail = {
     questionId: string;
     questionTitle: string;
     body: string;
-    contribType: ContribType;
+    contribType: ContribType | null;
+    /** AI 점수 0~8 (12차시). 채점 대기거나 12차시 전 답변이면 null */
+    aiScore: number | null;
+    pending: boolean;
+    /** 9~11차시 답변의 기록 */
     claimedType: ContribType | null;
     aiType: ContribType | null;
     aiReason: string | null;
@@ -252,7 +255,7 @@ export async function getAdminUserDetail(
     supabase
       .from("answers")
       .select(
-        "id, question_id, body, contrib_type, claimed_type, ai_type, ai_reason, is_accepted, created_at, questions(title)"
+        "id, question_id, body, contrib_type, ai_score, claimed_type, ai_type, ai_reason, is_accepted, created_at, questions(title)"
       )
       .eq("author_id", userId)
       .order("created_at", { ascending: false }),
@@ -277,7 +280,9 @@ export async function getAdminUserDetail(
     questionTitle:
       (r.questions as { title?: string } | null)?.title ?? "(삭제된 질문)",
     body: r.body as string,
-    contribType: r.contrib_type as ContribType,
+    contribType: r.contrib_type as ContribType | null,
+    aiScore: r.ai_score as number | null,
+    pending: r.ai_score === null && r.contrib_type === null,
     claimedType: r.claimed_type as ContribType | null,
     aiType: r.ai_type as ContribType | null,
     aiReason: r.ai_reason as string | null,
@@ -296,9 +301,7 @@ export async function getAdminUserDetail(
       questionCount: qRes.data?.length ?? 0,
       answerCount: answers.length,
       acceptedCount: answers.filter((a) => a.isAccepted).length,
-      loweredCount: answers.filter(
-        (a) => a.claimedType !== null && a.aiType !== null && a.contribType !== a.claimedType
-      ).length,
+      zeroCount: answers.filter((a) => a.aiScore === 0).length,
       joinedAt: (p.created_at as string).slice(0, 10),
       // 인증 쪽 조회가 실패해도(계정만 지워진 경우 등) 화면은 보여준다
       lastSignInAt: toKst(authRes.data?.user?.last_sign_in_at),
@@ -370,7 +373,10 @@ export type AdminRecentAnswer = {
   authorId: string;
   /** 목록용으로 앞부분만 */
   excerpt: string;
-  contribType: ContribType;
+  contribType: ContribType | null;
+  /** AI 점수 (12차시). 12차시 전 답변이나 채점 대기면 null */
+  aiScore: number | null;
+  pending: boolean;
   at: string;
 };
 
@@ -380,7 +386,7 @@ export async function getRecentAnswers(limit = 20): Promise<AdminRecentAnswer[]>
 
   const { data, error } = await supabase
     .from("answers")
-    .select("id, question_id, author_id, body, contrib_type, created_at, profiles(name, cohort), questions(title)")
+    .select("id, question_id, author_id, body, contrib_type, ai_score, created_at, profiles(name, cohort), questions(title)")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -396,7 +402,9 @@ export async function getRecentAnswers(limit = 20): Promise<AdminRecentAnswer[]>
       who: prof ? `${prof.cohort ?? "?"}기 ${prof.name || "이름 없음"}` : "(알 수 없음)",
       authorId: r.author_id as string,
       excerpt: body.length > 80 ? body.slice(0, 80) + "…" : body,
-      contribType: r.contrib_type as ContribType,
+      contribType: r.contrib_type as ContribType | null,
+      aiScore: r.ai_score as number | null,
+      pending: r.ai_score === null && r.contrib_type === null,
       at: toKst(r.created_at as string) ?? "",
     };
   });
@@ -425,4 +433,86 @@ export async function adminDeleteAnswer(id: string): Promise<void> {
   const { error } = await supabase.from("answers").delete().eq("id", id);
 
   if (error) throw new Error(`답변을 지우지 못했습니다: ${error.message}`);
+}
+
+// ---------------------------------------------------------------
+// 채점 대기 + 다시 채점 (12차시)
+// ---------------------------------------------------------------
+
+/** AI 채점을 아직 못 받은 답변들 (Gemini가 실패했을 때 저장된 것) */
+export async function getPendingAnswers(limit = 50): Promise<AdminRecentAnswer[]> {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from("answers")
+    .select("id, question_id, author_id, body, contrib_type, ai_score, created_at, profiles(name, cohort), questions(title)")
+    .is("ai_score", null)
+    .is("contrib_type", null)
+    .order("created_at", { ascending: true }) // 오래 기다린 것부터
+    .limit(limit);
+
+  if (error) throw new Error(`채점 대기 답변: ${error.message}`);
+
+  return (data ?? []).map((r: Record<string, unknown>) => {
+    const prof = r.profiles as { name?: string; cohort?: number } | null;
+    const body = (r.body as string) ?? "";
+    return {
+      id: r.id as string,
+      questionId: r.question_id as string,
+      questionTitle: (r.questions as { title?: string } | null)?.title ?? "(삭제된 질문)",
+      who: prof ? `${prof.cohort ?? "?"}기 ${prof.name || "이름 없음"}` : "(알 수 없음)",
+      authorId: r.author_id as string,
+      excerpt: body.length > 80 ? body.slice(0, 80) + "…" : body,
+      contribType: null,
+      aiScore: null,
+      pending: true,
+      at: toKst(r.created_at as string) ?? "",
+    };
+  });
+}
+
+/**
+ * 채점 대기 답변을 Gemini에게 다시 채점받는다.
+ * 점수가 정해지면 DB 트리거(schema-12의 on_answer_scored_later)가 그 점수를 적립한다.
+ *
+ * ★ .is("ai_score", null) — "아직 비어 있을 때만" 바꾼다
+ *   관리자가 버튼을 두 번 빨리 누르면 Gemini 요청이 두 번 가고 두 번 저장하려 한다.
+ *   두 번째 저장은 이미 점수가 있으므로 조건에 안 맞아 아무 일도 안 한다.
+ *   (DB 트리거도 "이미 매긴 점수는 바꿀 수 없다"로 한 번 더 막는다)
+ *
+ * @returns 매긴 점수. Gemini가 또 실패했으면 null
+ */
+export async function adminRejudgeAnswer(id: string): Promise<number | null> {
+  if (!UUID_RE.test(id)) throw new Error("잘못된 답변 id입니다.");
+
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from("answers")
+    .select("id, body, ai_score, contrib_type, questions(title, body)")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(`답변을 불러오지 못했습니다: ${error.message}`);
+  if (!data) throw new Error("답변이 없습니다.");
+  // 이미 채점됐거나 12차시 전 답변이면 할 일이 없다
+  if (data.ai_score !== null || data.contrib_type !== null) return data.ai_score;
+
+  const q = data.questions as unknown as { title?: string; body?: string } | null;
+  const judgement = await judgeAnswer({
+    questionTitle: q?.title ?? "",
+    questionBody: q?.body ?? "",
+    answerBody: data.body as string,
+  });
+  if (!judgement) return null;
+
+  const { error: upErr } = await supabase
+    .from("answers")
+    .update({ ai_score: judgement.score, ai_reason: judgement.reason })
+    .eq("id", id)
+    .is("ai_score", null);
+
+  if (upErr) throw new Error(`점수를 저장하지 못했습니다: ${upErr.message}`);
+
+  return judgement.score;
 }

@@ -108,31 +108,50 @@ export default async function AdminUserPage({
       ) : (
         <ul className="answer-list">
           {answers.map((a) => {
-            const lowered = a.claimedType !== null && a.contribType !== a.claimedType;
+            const lowered =
+              a.claimedType !== null && a.contribType !== null && a.contribType !== a.claimedType;
             return (
               <li key={a.id} className={a.isAccepted ? "answer accepted" : "answer"}>
                 <div className="answer-head">
                   <Link href={`/questions/${a.questionId}`} className="answer-who">
                     {a.questionTitle}
                   </Link>
-                  <span className="chip">{CONTRIB_LABEL[a.contribType]}</span>
+                  {a.pending ? (
+                    <span className="chip">채점 대기</span>
+                  ) : (
+                    a.contribType && <span className="chip">{CONTRIB_LABEL[a.contribType]}</span>
+                  )}
                   {a.isAccepted && <span className="chip chip-ok">채택됨</span>}
                   <span className="answer-date">{a.createdAt}</span>
                 </div>
                 <MathText text={a.body} className="answer-body" />
 
-                {/* 답변 화면과 같은 모양으로 AI 판정을 보여준다.
-                    관리자는 "AI가 왜 낮췄는지"가 타당했는지를 여기서 확인한다 */}
-                {a.claimedType !== null && (
+                {/* 답변 화면과 같은 모양으로 AI 채점을 보여준다.
+                    관리자는 "AI가 매긴 점수와 이유"가 타당했는지를 여기서 확인한다 */}
+                {a.aiScore !== null ? (
                   <p className="ai-note">
-                    <span className="ai-note-label">AI 판정</span>
-                    {lowered && (
-                      <span className="ai-note-change">
-                        {CONTRIB_LABEL[a.claimedType]} → {CONTRIB_LABEL[a.contribType]}
-                      </span>
-                    )}
-                    {a.aiType === null ? "판정을 받지 못함 (Gemini 실패)" : a.aiReason}
+                    <span className="ai-note-label">AI 채점</span>
+                    <span className="ai-note-change">{a.aiScore}점</span>
+                    {a.aiReason}
                   </p>
+                ) : a.pending ? (
+                  <p className="ai-note">
+                    <span className="ai-note-label">AI 채점</span>
+                    아직 채점되지 않음 (Gemini 실패) — 관리 화면의 "채점 대기"에서 다시 채점
+                  </p>
+                ) : (
+                  a.claimedType !== null &&
+                  a.contribType !== null && (
+                    <p className="ai-note">
+                      <span className="ai-note-label">AI 판정 (9~11차시)</span>
+                      {lowered && (
+                        <span className="ai-note-change">
+                          {CONTRIB_LABEL[a.claimedType]} → {CONTRIB_LABEL[a.contribType]}
+                        </span>
+                      )}
+                      {a.aiType === null ? "판정을 받지 못함 (Gemini 실패)" : a.aiReason}
+                    </p>
+                  )
                 )}
 
                 <div className="mod-actions">

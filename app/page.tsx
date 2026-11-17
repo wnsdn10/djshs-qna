@@ -21,11 +21,11 @@ import type { CurrentUser } from "@/lib/auth";
 import { getWaitingQuestions } from "@/lib/data/questions";
 import {
   CONTRIB_LABEL,
-  CONTRIB_POINTS,
   CONTRIB_HELP,
   ACCEPT_POINTS,
+  SCORE_BANDS,
+  SCORE_MAX,
 } from "@/lib/data/answers";
-import type { ContribType } from "@/lib/data/answers";
 import GoogleLoginButton from "@/app/_components/GoogleLoginButton";
 import QuestionCard from "@/app/questions/_components/QuestionCard";
 import {
@@ -236,8 +236,6 @@ function HowItWorks() {
   );
 }
 
-const CONTRIB_ORDER: ContribType[] = ["info", "direction", "full"];
-
 function PointsGuide() {
   return (
     <section className="home-sec" aria-labelledby="points-title">
@@ -247,20 +245,23 @@ function PointsGuide() {
       {/* ★ 이 문장이 메인 화면에서 가장 중요하다.
           "완벽하게 풀어줘야 답을 달 수 있다"고 생각하면 아무도 답을 안 단다.
           자료 하나만 알려줘도 점수가 된다는 걸 먼저 보여줘서 답변 부담을 낮춘다. */}
+      {/* 12차시: 학생이 유형을 고르지 않고 AI가 0~8점으로 채점한다 */}
       <p className="home-sec-lead">
-        참고 자료 하나만 알려줘도 {CONTRIB_POINTS.info}점입니다. 답변을 쓸 때
-        내가 한 만큼 유형을 고르면 됩니다.
+        참고 자료 하나만 알려줘도 점수가 됩니다. 답변을 등록하면 AI가 내용을 읽고
+        0~{SCORE_MAX}점 사이로 채점합니다.
       </p>
 
-      {/* 점수 숫자는 lib/data/answers.ts의 CONTRIB_POINTS에서 가져온다.
-          화면에 숫자를 직접 적으면 DB 점수표가 바뀔 때 여기만 틀린 채로 남는다.
-          (실제 점수 계산은 DB 트리거가 한다. 이 숫자는 "보여주기용"이다) */}
+      {/* 점수 구간은 lib/data/answers.ts의 SCORE_BANDS에서 가져온다.
+          화면에 숫자를 직접 적으면 기준이 바뀔 때 여기만 틀린 채로 남는다.
+          (실제 구간 계산은 DB의 score_band() 함수가 한다. 이 숫자는 "보여주기용"이다) */}
       <ul className="points">
-        {CONTRIB_ORDER.map((t) => (
-          <li key={t} className="point-card">
-            <span className="point-num">+{CONTRIB_POINTS[t]}</span>
-            <span className="point-name">{CONTRIB_LABEL[t]}</span>
-            <span className="point-desc">{CONTRIB_HELP[t]}</span>
+        {SCORE_BANDS.map((b) => (
+          <li key={b.type} className="point-card">
+            <span className="point-num">
+              +{b.min}~{b.max}
+            </span>
+            <span className="point-name">{CONTRIB_LABEL[b.type]}</span>
+            <span className="point-desc">{CONTRIB_HELP[b.type]}</span>
           </li>
         ))}
       </ul>

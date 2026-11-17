@@ -26,6 +26,7 @@
 
 1. **이메일에서 기수를 뽑아내는 부분** → `lib/cohort.ts`
 2. **기여 점수를 계산하는 부분** → `docs/schema-7-answers.sql`의 트리거 3개
+   (12차시에 트리거 ①을 `schema-12-ai-score.sql`에서 고쳤다 — 점수가 유형표가 아니라 AI 점수에서 온다)
 
 그래서:
 
@@ -145,7 +146,7 @@ lib/
     ranking.ts                getOverallRanking, getSubjectRanking, getMy*
 docs/
   schema.sql  schema-6-auth.sql  schema-7-answers.sql  schema-8-rls.sql  schema-9-ai-judge.sql
-  schema-10-privacy.sql  schema-11-moderation.sql
+  schema-10-privacy.sql  schema-11-moderation.sql  schema-12-ai-score.sql
 lib/math.ts                   본문에서 $수식$·$$수식$$ 찾기 (splitMath) + KaTeX 설정 — 12차시
 app/_components/renderMath.tsx 조각 → React (본문·미리보기 공용)
 app/_components/MathText.tsx  수식 본문 (서버에서 KaTeX로 그림, 브라우저는 KaTeX JS 안 받음)
@@ -155,7 +156,8 @@ app/_components/AdminDeleteButton.tsx  2단계 확인 삭제 버튼 (클라이�
 app/admin/page.tsx            관리자 화면 (requireAdmin) — 전체 학생 점수·활동
 app/admin/users/[id]/page.tsx 학생 한 명의 질문·답변(AI 판정)·점수 내역
 lib/data/admin.ts             관리자용 조회 (secret 키) — /admin 에서만 부를 것
-lib/ai/judge.ts               Gemini 답변 유형 판정 (fetch, Interactions API)
+lib/ai/judge.ts               Gemini 답변 채점 0~8점 (fetch, Interactions API) — 루브릭이 여기 있다
+app/admin/_components/RejudgeButton.tsx  "다시 채점" 버튼 (채점 대기 답변용)
 lib/supabase/admin.ts         secret 키 클라이언트 — createAnswer()와 lib/data/admin.ts 에서만
 design-system/djshs-qna/MASTER.md   ui-ux-pro-max 추천 중 채택·거절 근거
 ROADMAP.md                    8차시 전체 계획 + 에러 사례 모음 (785줄 이상)
@@ -189,8 +191,12 @@ ROADMAP.md                    8차시 전체 계획 + 에러 사례 모음 (785�
 - 채택 권한: 화면에서 버튼 숨김 + action에서 확인 + RLS `answers_update_by_question_author`
 - 중복 채택: `create unique index ... on answers (question_id) where is_accepted;`
 - 점수: **앱 코드에서 절대 더하지 않는다.** 트리거만 쓴다
-- 답변 유형(9차시): 학생 계정은 answers insert 권한이 **없다.** Server Action이 Gemini 판정 후
-  secret 키로 저장. 최종 = min(본인 선택, AI 판정), AI 실패 시 info. 같은 규칙이 DB check 제약에도 있음.
+- 답변 점수(12차시, 9차시 방식을 대체): 학생은 유형을 **고르지 않는다.** Gemini가 0~8점 정수로 채점,
+  `ai_score`에 저장 → DB가 `score_band()`로 유형 이름표 계산(1~2 자료 제보 / 3~5 방향 제시 / 6~8 전체 답변, 0점은 없음).
+  9차시 방식("고르면 AI가 낮추기만")은 "모두 최고 점수를 고른다"는 친구 피드백으로 폐기.
+  AI 실패 → `ai_score` null = **채점 대기**(0점). 관리자가 "다시 채점"하면 트리거가 그때 적립.
+  한 번 매긴 점수는 바꿀 수 없음(트리거 exception). 12차시 전 답변에 AI 점수 붙이기도 거부(이중 적립 방지).
+  학생 계정은 answers insert 권한이 **없다**(9차시) — Server Action이 secret 키로 저장.
   secret 키는 RLS를 건너뛰므로 `author_id`는 반드시 `getCurrentUser()`에서, 질문 접근권은 `getQuestion()`(RLS)으로 확인
 - 채택 시 질문 작성자가 바꿀 수 있는 칸은 `is_accepted` 하나 (열 단위 권한, schema-9)
 - 관리자: `lib/auth.ts`의 `ADMIN_EMAILS`. 판정은 **인증 이메일(`user.email`)** 로 한다 — profiles.email 아님.
@@ -209,9 +215,12 @@ ROADMAP.md                    8차시 전체 계획 + 에러 사례 모음 (785�
 
 `on_answer_created` → `on_answer_accepted` → `on_score_logged`
 
-점수표는 `contrib_points(kind)` 하나뿐: 자료 제보 1 · 방향 제시 3 · 전체 답변 8 · 채택 +5.
+12차시부터: 답변 점수 = `ai_score`(0~8) 그대로, 채택 +5는 `contrib_points('accepted')`.
+판정 대기였다가 나중에 점수가 정해지면 `on_answer_scored_later`가 적립 (4번째 트리거).
+`contrib_points()`의 info 1 · direction 3 · full 8은 12차시 전 답변용으로만 남아 있다.
 같은 숫자가 앱과 DB 양쪽에 있으면 반드시 어긋난다. DB가 기준이고
-`lib/data/answers.ts`의 `CONTRIB_POINTS`는 **표시용**이다.
+`lib/data/answers.ts`의 `SCORE_MAX`·`SCORE_BANDS`·`CONTRIB_POINTS`는 **표시용**이다.
+(최댓값 8은 DB 제약 `answers_ai_score_range`, `score_band()`, `lib/ai/judge.ts` 지시문에도 있다 — 바꾸려면 넷 다)
 
 ### 기수 비교 — 부등호 방향 주의
 
@@ -242,11 +251,15 @@ schema-10도 로컬 Postgres 16에서 7·8·9·10 순서로 검증함: 프로필
 키 값은 사용자가 직접 입력한다 (Claude는 키를 보거나 입력하지 않는다). Vercel은 Secret(Sensitive) 타입으로.
 Gemini 실제 호출은 아직 확인 못 함 — 첫 답변 등록 때 서버 로그 `[judgeAnswer]` 확인.
 
-### 1-2. `npm install katex@0.19.1` (12차시)
+### 1-2. `docs/schema-12-ai-score.sql` 실행 (12차시 AI 채점)
 
-수식 코드는 디스크에 있지만 **package.json에는 아직 katex가 없다.** 사용자가 위 명령으로 설치하면
-package.json과 package-lock.json이 같이 바뀐다. 이걸 안 하고 커밋하면 Vercel 빌드가 `Cannot find module 'katex'`로 실패.
-(Claude 컨테이너의 npm은 lock 파일을 다르게 써서 — `libc` 필드 13개를 지움 — 직접 만들어 넣지 않았다)
+**12차시 코드는 schema-12 없이 배포하면 답변 등록이 깨진다** (`ai_score` 칸이 없음, `contrib_type`이 not null).
+반대로 SQL을 먼저 실행해도 옛 코드는 동작한다(옛 코드는 contrib_type을 보내고, 트리거 ①의 옛 경로가 처리).
+순서: **SQL 실행 → 빌드 → 푸시.** (10·11과 순서가 반대인 점 주의)
+로컬 Postgres 16에서 7~12 순서로 검증: 5점→direction·+5, 앱이 full을 보내도 2점이면 info, 0점 기록 없음,
+대기→다시 채점 7점 +7, 점수 변경 거부, 옛 답변에 점수 붙이기 거부, 9점 거부, 학생 수정 거부, 채택·삭제 회수 정상.
+
+katex는 사용자가 설치 완료 (package.json `^0.19.1`).
 
 ### 2. 커밋·푸시 안 된 변경
 
@@ -351,7 +364,9 @@ CSS는 잘못된 값을 **에러 없이 조용히 버린다.**
 | HTTP 431 | 쿠키가 쌓여 헤더 초과 → Clear site data |
 | `Could not find the function public.xxx` | 해당 SQL 파일을 DB에서 실행 안 함 |
 | Postgres uuid 형식 오류 | `getQuestion()`의 `UUID_RE` 가드로 막음 |
-| 답변이 전부 "자료 제보"로 기록됨 + "판정을 받지 못해" | Gemini 실패. 서버 로그 `[judgeAnswer]` 확인 (키 누락·429 한도·404 모델 종료) |
+| 답변이 "채점 대기"로만 쌓임 (/admin 빨간 숫자) | Gemini 실패. 서버 로그 `[judgeAnswer]` 확인 (키 누락·429 한도·404 모델 종료) 후 "다시 채점" |
+| `null value in column "contrib_type"` / `column "ai_score" does not exist` | schema-12 실행 안 함 |
+| `이미 점수가 매겨진 답변입니다` | 채점된 답변의 ai_score를 바꾸려 함 (트리거가 막음, 정상) |
 | `permission denied for table answers` | 학생 계정 클라이언트로 answers insert 시도. 저장은 `createAdminClient()`로 |
 | `SUPABASE_SECRET_KEY 가 없습니다` | `.env.local`/Vercel에 secret 키 누락. Vercel은 재배포 필요 |
 | `Cannot find module 'katex'` | `npm install katex@0.19.1` 안 함 (package.json에 없음) |

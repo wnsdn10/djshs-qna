@@ -13,7 +13,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
-import { adminDeleteQuestion, adminDeleteAnswer } from "@/lib/data/admin";
+import { adminDeleteQuestion, adminDeleteAnswer, adminRejudgeAnswer } from "@/lib/data/admin";
 
 export async function deleteQuestionAction(formData: FormData) {
   await requireAdmin();
@@ -36,6 +36,20 @@ export async function deleteAnswerAction(formData: FormData) {
 
   const id = String(formData.get("id") ?? "");
   await adminDeleteAnswer(id);
+
+  revalidatePath("/", "layout");
+}
+
+/**
+ * 채점 대기 답변을 다시 채점한다 (12차시).
+ * Gemini가 실패해서 점수 없이 저장된 답변에 쓴다. 성공하면 DB 트리거가 점수를 적립한다.
+ */
+export async function rejudgeAnswerAction(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  await adminRejudgeAnswer(id);
+  // Gemini가 또 실패하면 점수는 그대로 비어 있고, 목록에 계속 남는다. 나중에 다시 누르면 된다.
 
   revalidatePath("/", "layout");
 }

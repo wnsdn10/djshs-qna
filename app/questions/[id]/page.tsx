@@ -8,7 +8,7 @@ import type { Answer } from "@/lib/data/answers";
 import {
   getAnswers,
   CONTRIB_LABEL,
-  CONTRIB_POINTS,
+  signedPoints,
   ACCEPT_POINTS,
 } from "@/lib/data/answers";
 import { requireUser, isAdmin } from "@/lib/auth";
@@ -40,7 +40,6 @@ const TYPE_LABEL: Record<QuestionType, string> = {
 
 const ERROR_MESSAGE: Record<string, string> = {
   body: "답변 내용을 입력하세요.",
-  type: "기여 유형을 골라주세요.",
 };
 
 export const dynamic = "force-dynamic";
@@ -166,13 +165,20 @@ export default async function QuestionDetailPage({
                   {a.authorCohort}기 {a.authorName}
                 </span>
 
-                <span className="chip">{CONTRIB_LABEL[a.contribType]}</span>
+                {/* 유형 이름표: 12차시부터는 AI 점수에서 계산된다. 0점이면 이름표가 없다 */}
+                {a.pending ? (
+                  <span className="chip">채점 대기</span>
+                ) : (
+                  a.contribType && <span className="chip">{CONTRIB_LABEL[a.contribType]}</span>
+                )}
 
-                {/* ★ 몇 점을 받았는지 보여준다.
+                {/* ★ 몇 점을 받았는지 보여준다 (채택 점수 포함).
                     유형 이름만 적어두면 그게 점수와 어떻게 연결되는지 알 수 없다. */}
-                <span className="chip chip-score">
-                  +{CONTRIB_POINTS[a.contribType] + (a.isAccepted ? ACCEPT_POINTS : 0)}
-                </span>
+                {(a.points !== null || a.isAccepted) && (
+                  <span className="chip chip-score">
+                    {signedPoints((a.points ?? 0) + (a.isAccepted ? ACCEPT_POINTS : 0))}
+                  </span>
+                )}
 
                 <span className="answer-date">{a.createdAt}</span>
               </div>
@@ -211,40 +217,53 @@ export default async function QuestionDetailPage({
 }
 
 /**
- * 답변 아래에 AI 판정 결과를 한 줄로 보여준다. (9차시)
+ * 답변 아래에 AI 채점 결과를 한 줄로 보여준다. (9차시에 만들고 12차시에 바꿈)
  *
  * ★ 왜 이유까지 보여주나
- *   점수가 깎였는데 이유를 모르면 학생은 "AI가 멋대로 깎았다"고 느낀다.
+ *   점수만 있고 이유가 없으면 학생은 "AI가 멋대로 매겼다"고 느낀다.
  *   이유가 보이면 납득하거나, 적어도 무엇이 부족했는지 알 수 있다.
- *   다른 학생들도 "이 서비스는 무엇을 전체 답변으로 보는지"를 배운다.
+ *   다른 학생들도 "이 서비스는 어떤 답에 높은 점수를 주는지"를 배운다.
  *
- * 깎인 건 잘못이 아니라서 빨강(--danger)을 쓰지 않는다.
+ * 점수가 낮은 건 잘못이 아니라서 빨강(--danger)을 쓰지 않는다.
  */
 function AiNote({ answer: a }: { answer: Answer }) {
-  // 9차시 전에 쓴 답변은 판정 기록이 없다
-  if (a.claimedType === null) return null;
-
-  const lowered = a.contribType !== a.claimedType;
-
-  // AI 호출이 실패해서 '자료 제보'로 기록된 경우
-  if (a.aiType === null) {
-    return lowered ? (
+  // 12차시 방식: AI가 0~8점으로 매긴 답변
+  if (a.aiScore !== null) {
+    return (
       <p className="ai-note">
-        <span className="ai-note-label">AI 판정</span>
-        판정을 받지 못해 {CONTRIB_LABEL[a.contribType]}(으)로 기록했습니다.
+        <span className="ai-note-label">AI 채점</span>
+        <span className="ai-note-change">{a.aiScore}점</span>
+        {a.aiReason}
       </p>
-    ) : null;
+    );
   }
 
-  return (
-    <p className="ai-note">
-      <span className="ai-note-label">AI 판정</span>
-      {lowered && (
-        <span className="ai-note-change">
-          {CONTRIB_LABEL[a.claimedType]} → {CONTRIB_LABEL[a.contribType]}
-        </span>
-      )}
-      {a.aiReason}
-    </p>
-  );
+  // AI 호출이 실패해서 아직 점수가 없는 답변
+  if (a.pending) {
+    return (
+      <p className="ai-note">
+        <span className="ai-note-label">AI 채점</span>
+        채점을 아직 받지 못했습니다. 다시 채점되면 점수가 들어옵니다.
+      </p>
+    );
+  }
+
+  // 9~11차시 답변: 작성자가 유형을 고르고 AI가 낮추기만 하던 때의 기록
+  if (a.claimedType !== null && a.contribType !== null) {
+    const lowered = a.contribType !== a.claimedType;
+    return (
+      <p className="ai-note">
+        <span className="ai-note-label">AI 판정</span>
+        {lowered && (
+          <span className="ai-note-change">
+            {CONTRIB_LABEL[a.claimedType]} → {CONTRIB_LABEL[a.contribType]}
+          </span>
+        )}
+        {a.aiType === null ? "판정을 받지 못해 자료 제보로 기록했습니다." : a.aiReason}
+      </p>
+    );
+  }
+
+  // 9차시 전 답변은 판정 기록이 없다
+  return null;
 }

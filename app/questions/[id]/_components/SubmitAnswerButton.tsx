@@ -27,7 +27,7 @@ export default function SubmitAnswerButton() {
       // 스크린 리더에도 "처리 중"임을 알린다
       aria-busy={pending}
     >
-      {pending ? "AI가 답변 유형을 확인하는 중…" : "답변 등록"}
+      {pending ? "AI가 채점하는 중…" : "답변 등록"}
     </button>
   );
 }

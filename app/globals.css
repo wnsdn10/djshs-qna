@@ -1900,6 +1900,34 @@ a {
 }
 
 /* ============================================================
+   AI 채점 안내 (12차시) — 답변 폼에서 "점수는 AI가 매깁니다" 기준표
+   ============================================================ */
+
+/* 입력칸의 <label>과 같은 무게의 제목. 입력이 아니라 안내라서 <label> 대신 <h3>을 쓴다 */
+.field-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* 메인 화면의 점수표(.points)를 폼 안에 맞게 작게 */
+.points-compact {
+  margin: var(--sp-2) 0;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--sp-2);
+}
+
+.points-compact .point-card {
+  padding: var(--sp-3);
+  gap: 2px;
+}
+
+.points-compact .point-num {
+  font-size: 1.15rem;
+}
+
+/* ============================================================
    작은 화면
    ============================================================ */
 @media (max-width: 640px) {

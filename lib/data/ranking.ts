@@ -78,7 +78,10 @@ export type MyAnswer = {
   id: string;
   questionId: string;
   questionTitle: string;
-  contribType: string;
+  /** 유형 이름표. 0점·채점 대기 답변은 null */
+  contribType: string | null;
+  /** AI 점수 0~8 (12차시). 12차시 전 답변이나 채점 대기면 null */
+  aiScore: number | null;
   isAccepted: boolean;
   createdAt: string;
 };
@@ -117,7 +120,7 @@ export async function getMyAnswers(userId: string): Promise<MyAnswer[]> {
   // 질문 제목을 같이 가져온다.
   const { data, error } = await supabase
     .from("answers")
-    .select("id, question_id, contrib_type, is_accepted, created_at, questions(title)")
+    .select("id, question_id, contrib_type, ai_score, is_accepted, created_at, questions(title)")
     .eq("author_id", userId)
     .order("created_at", { ascending: false });
 
@@ -129,7 +132,8 @@ export async function getMyAnswers(userId: string): Promise<MyAnswer[]> {
     questionTitle:
       ((r.questions as { title?: string } | null)?.title as string) ??
       "(삭제된 질문)",
-    contribType: r.contrib_type as string,
+    contribType: r.contrib_type as string | null,
+    aiScore: r.ai_score as number | null,
     isAccepted: r.is_accepted as boolean,
     createdAt: (r.created_at as string).slice(0, 10),
   }));

@@ -97,7 +97,12 @@ export default async function MePage() {
             <li key={a.id}>
               <Link href={`/questions/${a.questionId}`}>{a.questionTitle}</Link>
               <span className="mini-meta">
-                {REASON_LABEL[a.contribType] ?? a.contribType}
+                {/* 12차시: AI 점수가 있으면 점수를, 없으면 예전 유형 이름을. 둘 다 없으면 채점 대기 */}
+                {a.aiScore !== null
+                  ? `AI ${a.aiScore}점`
+                  : a.contribType
+                    ? (REASON_LABEL[a.contribType] ?? a.contribType)
+                    : "채점 대기"}
                 {a.isAccepted && " · 채택됨"} · {a.createdAt}
               </span>
             </li>
